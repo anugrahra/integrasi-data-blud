@@ -16,6 +16,7 @@ export default function Home() {
       desc: "Pengolahan air minum, kualitas air.",
       icon: <Droplets className="w-6 h-6" />,
       href: "/produksi",
+      highlight: false
       // status: "Operational"
     },
     // {
