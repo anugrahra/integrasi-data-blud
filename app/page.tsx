@@ -18,35 +18,35 @@ export default function Home() {
       href: "/produksi",
       // status: "Operational"
     },
-    {
-      title: "Distribusi",
-      desc: "Jaringan pipa, kebocoran.",
-      icon: <Map className="w-6 h-6" />,
-      href: "/distribusi",
-      // status: "Active"
-    },
-    {
-      title: "Pelayanan Langganan",
-      desc: "Data pelanggan, pengaduan.",
-      icon: <Users className="w-6 h-6" />,
-      href: "/pelayanan",
-      // status: "Online"
-    },
-    {
-      title: "Administrasi Umum",
-      desc: "Surat, aset/gudang, kepegawaian.",
-      icon: <FileText className="w-6 h-6" />,
-      href: "/administrasi",
-      // status: "Standby"
-    },
-    {
-      title: "Perencanaan Teknik",
-      desc: "RAB, survey, proyek baru.",
-      icon: <Ruler className="w-6 h-6" />,
-      href: "/perencanaan",
-      // status: "In Progress",
-      highlight: false
-    },
+    // {
+    //   title: "Distribusi",
+    //   desc: "Jaringan pipa, kebocoran.",
+    //   icon: <Map className="w-6 h-6" />,
+    //   href: "/distribusi",
+    //   // status: "Active"
+    // },
+    // {
+    //   title: "Pelayanan Langganan",
+    //   desc: "Data pelanggan, pengaduan.",
+    //   icon: <Users className="w-6 h-6" />,
+    //   href: "/pelayanan",
+    //   // status: "Online"
+    // },
+    // {
+    //   title: "Administrasi Umum",
+    //   desc: "Surat, aset/gudang, kepegawaian.",
+    //   icon: <FileText className="w-6 h-6" />,
+    //   href: "/administrasi",
+    //   // status: "Standby"
+    // },
+    // {
+    //   title: "Perencanaan Teknik",
+    //   desc: "RAB, survey, proyek baru.",
+    //   icon: <Ruler className="w-6 h-6" />,
+    //   href: "/perencanaan",
+    //   // status: "In Progress",
+    //   highlight: false
+    // }
   ];
 
   return (

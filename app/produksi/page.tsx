@@ -7,7 +7,7 @@ import {
 } from 'recharts';
 import { 
   ArrowLeft, Factory, Filter, Droplets, Calendar, ChevronDown, 
-  FlaskConical, FileSpreadsheet, FileText, FolderOpen, Loader2, Waves, X, Maximize2, MousePointerClick, Clock, Activity 
+  FlaskConical, FileSpreadsheet, FileText, FolderOpen, Loader2, Waves, X, Maximize2, MousePointerClick, Clock, Activity, Sparkles, Bot, Copy, Check
 } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval, parseISO, getDaysInMonth } from 'date-fns';
 import { id } from 'date-fns/locale';
@@ -33,6 +33,25 @@ export default function ProductionPage() {
   
   // MODAL STATE
   const [showAirBakuModal, setShowAirBakuModal] = useState(false);
+
+  // --- AI STATE ---
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  // ---------------
+
+  // --- STATE & FUNGSI COPY DI SINI ---
+  const [isCopied, setIsCopied] = useState(false);
+
+  const handleCopy = () => {
+    if (!aiSummary) return;
+    // Bersihkan tanda bintang (markdown) supaya pas di-paste teksnya rapi (gak ada **)
+    const plainText = aiSummary.replace(/\*\*/g, '').replace(/\*/g, '-');
+    navigator.clipboard.writeText(plainText);
+    
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000); // Balik ke icon copy setelah 2 detik
+  };
+  // ----------------------------------------------
 
   // Filter State
   const [filterMode, setFilterMode] = useState<'default' | '3bulan' | 'year' | 'all' | 'custom'>('default');
@@ -349,6 +368,58 @@ export default function ProductionPage() {
     doc.save(`Laporan_Produksi_${currentSpam.name.replace(/\s+/g, '_')}.pdf`);
   };
 
+  // --- FUNGSI AI ---
+  const handleGenerateAiSummary = async () => {
+    if (!stats || !tableTotals) return;
+    
+    setIsAiLoading(true);
+    setAiSummary(null);
+
+    try {
+      const response = await fetch('/api/analyze-produksi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          spamName: currentSpam.name,         // <--- TAMBAHAN BARU
+          spamCapacity: currentSpam.capacity, // <--- TAMBAHAN BARU
+          periodLabel: stats.periodLabel,
+          stats: {
+            totalProd: stats.totalProd,
+            avgProdDay: stats.avgProdDay,
+            avgAirBaku: stats.avgAirBaku,
+            avgLps: stats.avgLps,
+            totalPac: stats.totalPac,
+            avgDosePac: stats.avgDosePac,
+            totalKap: stats.totalKap,
+            avgDoseKap: stats.avgDoseKap,
+          },
+          monthlyData: filteredData.map(item => ({
+            bulan: item.bulanLabel,
+            airBakuLPS: item.airBaku,
+            produksiM3: item.m3,
+            lps: item.lps,
+            pacKg: item.pacKg,
+            dosisPac: item.dosePac,
+            kapKg: item.kapKg,
+            dosisKap: item.doseKap
+          }))
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setAiSummary(data.summary);
+      } else {
+        setAiSummary("Maaf, gagal memuat analisis. Silakan coba lagi.");
+      }
+    } catch (error) {
+      setAiSummary("Terjadi kesalahan jaringan saat memanggil AI.");
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+  // ----------------------------------
+
   return (
     <main className="min-h-screen bg-neutral-50 text-neutral-900 font-sans pb-20 relative">
       
@@ -496,6 +567,112 @@ export default function ProductionPage() {
                 </div>
               </div>
             </div>
+
+            {/* --- UI AI SECTION --- */}
+            <div className="bg-white border border-indigo-200 shadow-sm rounded-sm p-5 relative overflow-hidden">
+              {/* Efek glow tipis di background */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
+              
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 relative z-10">
+                <div className="flex items-center gap-2 text-indigo-900">
+                  <Bot className="w-5 h-5 text-indigo-600" />
+                  <h3 className="text-sm font-bold uppercase tracking-tight">AI Executive Summary</h3>
+                </div>
+                
+                <button 
+                  onClick={handleGenerateAiSummary}
+                  disabled={isAiLoading}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-xs font-bold rounded transition-colors shadow-sm"
+                >
+                  {isAiLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                  {isAiLoading ? 'MENGANALISIS DATA...' : 'GENERATE INSIGHT'}
+                </button>
+              </div>
+
+              {/* Area Hasil Teks */}
+              {(isAiLoading || aiSummary) && (
+                <div className="mt-4 pt-4 border-t border-indigo-50 relative z-10 animate-in fade-in duration-300">
+
+                  {/* --- TOMBOL COPY --- */}
+                  {!isAiLoading && aiSummary && (
+                    <button 
+                      onClick={handleCopy}
+                      className="absolute top-2 right-0 p-1.5 flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-800 rounded-md transition-all shadow-sm z-20"
+                      title="Salin Teks"
+                    >
+                      {isCopied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                      <span className={`text-[10px] font-bold ${isCopied ? 'text-green-600' : 'text-indigo-700'}`}>
+                        {isCopied ? 'COPIED!' : 'COPY'}
+                      </span>
+                    </button>
+                  )}
+                  {/* ------------------- */}
+
+                  {isAiLoading ? (
+                     <div className="space-y-2">
+                        <div className="h-3 bg-indigo-100 rounded animate-pulse w-full"></div>
+                        <div className="h-3 bg-indigo-100 rounded animate-pulse w-5/6"></div>
+                        <div className="h-3 bg-indigo-100 rounded animate-pulse w-4/6"></div>
+                     </div>
+                  ) : (
+                    <div className="text-sm text-neutral-700 leading-relaxed font-sans">
+                      {(aiSummary || '').split('\n').map((line, lineIndex) => {
+                        const trimmedLine = line.trim();
+                        // 1. Tangani baris kosong agar paragrafnya berjarak rapi
+                        if (!trimmedLine) return <div key={lineIndex} className="h-2"></div>;
+
+                        // 2. Cek apakah ini baris Bullet Point (diawali "* " atau "- ")
+                        const isBullet = trimmedLine.startsWith('* ') || trimmedLine.startsWith('- ');
+                        const cleanLine = isBullet ? trimmedLine.substring(2) : trimmedLine;
+
+                        // 3. Fungsi pintar untuk membedah Bold dan Italic
+                        const renderFormat = (text: string) => {
+                          // Regex untuk memecah berdasarkan **bold** ATAU *italic*
+                          const parts = text.split(/(\*\*.*?\*\*|\*.*?\*)/g);
+                          
+                          return parts.map((part, partIndex) => {
+                            if (part.startsWith('**') && part.endsWith('**')) {
+                              // Teks Bold
+                              return <strong key={partIndex} className="font-bold text-indigo-900">{part.slice(2, -2)}</strong>;
+                            } else if (part.startsWith('*') && part.endsWith('*')) {
+                              // Teks Italic
+                              return <em key={partIndex} className="italic text-indigo-700">{part.slice(1, -1)}</em>;
+                            }
+                            // Teks Biasa
+                            return <span key={partIndex}>{part}</span>;
+                          });
+                        };
+
+                        // 4. Render tampilan akhirnya
+                        if (isBullet) {
+                          return (
+                            <div key={lineIndex} className="flex items-start gap-2 mb-1.5 ml-2">
+                              <span className="text-indigo-500 font-bold mt-0.5">•</span>
+                              <div className="flex-1">{renderFormat(cleanLine)}</div>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <p key={lineIndex} className="mb-2 text-justify">
+                            {renderFormat(cleanLine)}
+                          </p>
+                        );
+                      })}
+                    </div>
+                  )}
+                  
+                  {/* DISCLAIMER AI */}
+                  {!isAiLoading && aiSummary && (
+                    <p className="mt-4 text-[10px] text-neutral-400 italic flex items-start gap-1">
+                       <span className="text-[12px] leading-none">⚠️</span>
+                       Kesimpulan ini dihasilkan oleh AI (Google Gemini) berdasarkan data rentang waktu yang Anda pilih dan dapat mengandung ketidakakuratan. Harap selalu gunakan kebijakan profesional Anda dalam pengambilan keputusan operasional.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+            {/* ---------------------------------------- */}
 
             {/* CHART 1: PRODUKSI */}
             <div className="bg-white p-6 border border-neutral-200 shadow-sm rounded-sm">
