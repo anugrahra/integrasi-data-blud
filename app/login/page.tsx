@@ -65,7 +65,7 @@ export default function LoginPage() {
               <Database className="w-5 h-5 text-neutral-900 shrink-0 mt-0.5" />
               <div>
                 <p className="font-bold mb-1 text-neutral-900">SELAMAT DATANG</p>
-                <p>Mohon gunakan akun Google Anda untuk mengakses data operasional.</p>
+                <p>Mohon gunakan akun Google Anda untuk mengakses.</p>
               </div>
             </div>
 
@@ -96,7 +96,7 @@ export default function LoginPage() {
             </button>
             
             <div className="mt-8 text-center text-[9px] text-neutral-400 font-mono flex flex-col gap-1">
-              <p>H▲A // V.1.0.2 REV 2026</p>
+              <p>H▲A // V.1.0.2 2026</p>
               <p>ENGINEERED FOR BLUD AM CIMAHI</p>
             </div>
           </div>
