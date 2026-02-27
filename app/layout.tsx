@@ -14,7 +14,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pusat Data BLUD AM Terintegrasi",
+  title: {
+    template: "%s - Pusat Data BLUD AM Terintegrasi",
+    default: "Pusat Data BLUD AM Terintegrasi", // Ini bakal dipake kalau halamannya nggak ngasih judul spesifik
+  },
   description: "Sistem informasi manajemen operasional dan pelayanan.",
 };
 

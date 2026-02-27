@@ -15,7 +15,7 @@ export default function KaurLayout({ children }: { children: React.ReactNode }) 
   const [isCheckingAccess, setIsCheckingAccess] = useState(true);
 
   const isPerencanaan = pathname.includes('/kaur-perencanaan');
-  const urusanTitle = isPerencanaan ? 'Perencanaan Teknik' : 'Urusan Produksi';
+  const urusanTitle = isPerencanaan ? 'Urusan Perencanaan Teknik' : 'Urusan Produksi';
   const urusanInitial = isPerencanaan ? 'T' : 'P';
   const manajemenLink = isPerencanaan ? '/kaur-perencanaan' : '/kaur-produksi';
 
@@ -80,7 +80,18 @@ export default function KaurLayout({ children }: { children: React.ReactNode }) 
     };
 
     checkAccess();
-  }, [pathname, router]); // <-- Sekarang garis merahnya pasti hilang!
+  }, [pathname, router]);
+
+  // --- FUNGSI GANTI JUDUL TAB BROWSER OTOMATIS ---
+  useEffect(() => {
+    // Kalau dia ada di dashboard kaur, ganti judulnya sesuai urusan
+    if (pathname.includes('/kaur-')) {
+      document.title = `${urusanTitle} - Pusat Data BLUD AM Terintegrasi`;
+    } else {
+      // Balikin ke default kalau keluar dari dashboard
+      document.title = 'Pusat Data BLUD AM Terintegrasi';
+    }
+  }, [pathname, urusanTitle]);
 
   // --- TAMPILAN LOADING SAAT CEK AKSES ---
   if (isCheckingAccess) {

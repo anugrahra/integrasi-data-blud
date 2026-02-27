@@ -1,12 +1,50 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation'; // <-- Tambahan buat nendang
 import { supabase } from '@/utils/supabase';
 import { Swords, Database, Loader2, TerminalSquare } from 'lucide-react';
 
 export default function LoginPage() {
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  
+  // State baru buat nahan UI lo biar gak kedip pas ngecek sesi
+  const [isChecking, setIsChecking] = useState(true);
+
+  // --- SATPAM PINTU DEPAN (ANTI-DOUBLE LOGIN) ---
+  useEffect(() => {
+    const checkExistingSession = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        const { data: masterData } = await supabase
+          .from('master_users')
+          .select('role_jabatan')
+          .eq('email', user.email)
+          .single();
+
+        if (masterData) {
+          const role = masterData.role_jabatan.toLowerCase();
+          if (role.includes('produksi')) {
+            router.replace('/kaur-produksi');
+          } else if (role.includes('perencanaan')) {
+            router.replace('/kaur-perencanaan');
+          } else {
+            router.replace('/'); 
+          }
+        } else {
+          router.replace('/'); 
+        }
+      } else {
+        // Kalau beneran belum login, tampilin UI Login lo
+        setIsChecking(false);
+      }
+    };
+
+    checkExistingSession();
+  }, [router]);
 
   const handleGoogleLogin = async () => {
     try {
@@ -29,6 +67,16 @@ export default function LoginPage() {
     }
   };
 
+  // Tampilan loading sebentar pas ngecek sesi (Biar UI utama nggak kedip)
+  if (isChecking) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-neutral-100 font-mono text-neutral-500 text-sm font-bold animate-pulse">
+        MEMERIKSA OTORISASI...
+      </main>
+    );
+  }
+
+  // --- UI ASLI LO 100% TIDAK DISENTUH ---
   return (
     // BACKGROUND INDUSTRIAL DENGAN POLA GRID HALUS
     <main className="min-h-screen flex items-center justify-center bg-neutral-100 relative overflow-hidden font-sans bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]">
