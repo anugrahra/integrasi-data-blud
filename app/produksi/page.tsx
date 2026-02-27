@@ -14,13 +14,8 @@ import { id } from 'date-fns/locale';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { createClient } from '@supabase/supabase-js';
-
-// --- SUPABASE CLIENT ---
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { supabase } from '@/utils/supabase';
+import AiTextFormatter from '@/components/AiTextFormatter';
 
 const SPAM_LIST = [
   { id: 'cimahi_utara', name: 'SPAM Cimahi Utara', capacity: '80 LPS' },
@@ -117,7 +112,8 @@ export default function ProductionPage() {
         bulanLabel: format(dateObj, 'MMM yyyy', { locale: id }),
         fullDateLabel: format(dateObj, 'MMMM yyyy', { locale: id }),
         m3,
-        lps: jam > 0 ? Number(((m3 * 1000) / (jam * 3600)).toFixed(2)) : 0,
+        // lps: jam > 0 ? Number(((m3 * 1000) / (jam * 3600)).toFixed(2)) : 0,
+        lps: Number((m3 / days / 24 / 3.6).toFixed(2)),
         avgProdDay: Number((m3 / days).toFixed(0)),
         jam, // added
         avgJamDay: Number((jam / days).toFixed(1)), // added logic
@@ -142,16 +138,18 @@ export default function ProductionPage() {
       totalM3: sum('m3'),
       avgM3: avg('m3'),
       avgLps: avg('lps'),
+      avgLps24 : avg ('Lps24'),
       totalPac: sum('pacKg'),
+      totalJam: sum('jam'),
       avgPacKg: avg('pacKg'),
       avgDosePac: avg('dosePac'),
       totalKap: sum('kapKg'),
       avgKapKg: avg('kapKg'),
       avgDoseKap: avg('doseKap'),
       avgAirBaku: avg('airBaku'),
-      // New Averages for Cards
       avgProdDaily: avg('avgProdDay'),
       avgJamDaily: avg('avgJamDay'),
+      avgJam: avg('jam'),
       avgPacDaily: avg('avgPacDay'),
       avgKapDaily: avg('avgKapDay')
     };
@@ -161,15 +159,15 @@ export default function ProductionPage() {
     if (!tableTotals) return null;
     return {
       totalProd: tableTotals.totalM3.toLocaleString('id-ID'),
+      totalJam: tableTotals.totalJam.toLocaleString('id-ID'),
       avgLps: tableTotals.avgLps.toFixed(2),
       avgAirBaku: tableTotals.avgAirBaku.toFixed(0),
       totalPac: tableTotals.totalPac.toLocaleString('id-ID'),
       totalKap: tableTotals.totalKap.toLocaleString('id-ID'),
       periodLabel: filteredData.length > 0 ? `${filteredData[0].bulanLabel} - ${filteredData[filteredData.length-1].bulanLabel}` : '',
-      
-      // Card Stats
       avgProdDay: tableTotals.avgProdDaily.toLocaleString('id-ID', {maximumFractionDigits: 0}),
       avgJamDay: tableTotals.avgJamDaily.toFixed(1),
+      avgJam: tableTotals.avgJam.toFixed(1),
       avgPacDay: tableTotals.avgPacDaily.toFixed(1),
       avgDosePac: tableTotals.avgDosePac.toFixed(2),
       avgKapDay: tableTotals.avgKapDaily.toFixed(1),
@@ -246,126 +244,106 @@ export default function ProductionPage() {
   };
 
   const handleExportPDF = () => {
-    if (!filteredData.length || !tableTotals) return;
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    // Kertas A4 ganti jadi posisi 'l' (Landscape) biar lega
+    const doc = new jsPDF('l', 'mm', 'a4'); 
     
-    doc.setFont("helvetica", "bold");
+    // --- 1. LOGIKA AMBIL INFO KOP SURAT ---
+    // Cek SPAM apa yang lagi dipilih (ngecek dari id spam di data tabel)
+    const uniqueSpam = Array.from(new Set(filteredData.map((item: any) => item.spam_id)));
+    let namaSpam = "SEMUA LOKASI SPAM";
+    if (uniqueSpam.length === 1) {
+      namaSpam = uniqueSpam[0] === 'cimahi_utara' ? 'SPAM CIMAHI UTARA' : 'SPAM PASIRKALIKI';
+    }
+
+    // Ambil periode dari data terlama ke data terbaru (karena di UI posisinya dibalik)
+    const dataUrut = [...filteredData].reverse();
+    const periodeBulan = dataUrut.length > 0 
+      ? `${dataUrut[0].fullDateLabel} s/d ${dataUrut[dataUrut.length - 1].fullDateLabel}`
+      : '-';
+
+    // --- 2. RENDER KOP SURAT ---
     doc.setFontSize(14);
-    doc.text("LAPORAN OPERASIONAL & PRODUKSI", 14, 15);
+    doc.setFont("helvetica", "bold");
+    doc.text('LAPORAN PRODUKSI AIR BERSIH', 14, 15);
     
-    doc.setFont("courier", "normal");
     doc.setFontSize(10);
-    doc.text(`UNIT    : ${currentSpam.name.toUpperCase()}`, 14, 22);
-    doc.text(`PERIODE : ${stats?.periodLabel.toUpperCase()}`, 14, 27);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Lokasi SPAM : ${namaSpam}`, 14, 22);
+    doc.text(`Periode     : ${periodeBulan}`, 14, 27);
+    doc.text(`Waktu Cetak : ${new Date().toLocaleDateString('id-ID')} - ${new Date().toLocaleTimeString('id-ID')}`, 14, 32);
 
-    const tableHead = [
-      [
-        { content: 'BULAN', rowSpan: 2, styles: { valign: 'middle', halign: 'left' } },
-        { content: 'AIR BAKU', colSpan: 1, styles: { halign: 'center', fillColor: [17, 94, 89] } },
-        { content: 'PRODUKSI', colSpan: 2, styles: { halign: 'center', fillColor: [23, 23, 23] } },
-        { content: 'KAPASITAS', colSpan: 1, styles: { halign: 'center', fillColor: [30, 58, 138] } },
-        { content: 'PEMAKAIAN BAHAN KIMIA (PAC)', colSpan: 2, styles: { halign: 'center', fillColor: [120, 53, 15], textColor: [254, 243, 199] } },
-        { content: 'PEMAKAIAN BAHAN KIMIA (KAPORIT)', colSpan: 2, styles: { halign: 'center', fillColor: [82, 82, 82] } }
-      ],
-      [
-        { content: '(LPS)', styles: { halign: 'center', fillColor: [19, 78, 74], textColor: [94, 234, 212] } },
-        { content: 'TOTAL (m3)', styles: { halign: 'right', fillColor: [38, 38, 38] } },
-        { content: 'AVG (m3/hari)', styles: { halign: 'right', fillColor: [38, 38, 38], textColor: [163, 163, 163] } },
-        { content: 'LPS', styles: { halign: 'center', fillColor: [30, 64, 175] } },
-        { content: 'Total (Kg)', styles: { halign: 'right', fillColor: [146, 64, 14], textColor: [253, 230, 138] } },
-        { content: 'Dosis (mg/l)', styles: { halign: 'right', fillColor: [146, 64, 14], textColor: [253, 230, 138] } },
-        { content: 'Total (Kg)', styles: { halign: 'right', fillColor: [64, 64, 64] } },
-        { content: 'Dosis (mg/l)', styles: { halign: 'right', fillColor: [64, 64, 64] } },
-      ]
-    ];
+    // --- 3. SIAPIN DATA TABEL ---
+    const tableColumn = ["BULAN", "AIR BAKU (LPS)", "PRODUKSI (m³)", "LPS", "TOTAL PAC (Kg)", "TOTAL KAPORIT (Kg)"];
+    const tableRows: any[] = [];
+    dataUrut.forEach(row => {
+      tableRows.push([
+        row.fullDateLabel,
+        row.airBaku > 0 ? row.airBaku.toLocaleString('id-ID') : '-',
+        row.m3.toLocaleString('id-ID'),
+        row.lps,
+        row.pacKg.toLocaleString('id-ID'),
+        row.kapKg.toLocaleString('id-ID')
+      ]);
+    });
 
-    const tableBody = filteredData.map(item => [
-      item.fullDateLabel.toUpperCase(),
-      item.airBaku > 0 ? item.airBaku.toLocaleString('id-ID') : '-',
-      item.m3.toLocaleString('id-ID'),
-      item.avgProdDay.toLocaleString('id-ID'),
-      item.lps.toFixed(2),
-      item.pacKg.toLocaleString('id-ID'),
-      item.dosePac.toFixed(2),
-      item.kapKg.toLocaleString('id-ID'),
-      item.doseKap.toFixed(2),
-    ]);
+    const tableFoot: any[] = [];
+    if (tableTotals) {
+      tableFoot.push([
+        "TOTAL",
+        "-",
+        tableTotals.totalM3.toLocaleString('id-ID'),
+        "-",
+        tableTotals.totalPac.toLocaleString('id-ID'),
+        tableTotals.totalKap.toLocaleString('id-ID')
+      ]);
+      tableFoot.push([
+        "RATA-RATA",
+        tableTotals.avgAirBaku?.toFixed(2) || 0,
+        tableTotals.avgM3?.toLocaleString('id-ID', {maximumFractionDigits: 0}) || 0,
+        tableTotals.avgLps?.toFixed(2) || 0,
+        tableTotals.avgPacKg?.toLocaleString('id-ID', {maximumFractionDigits: 0}) || 0,
+        tableTotals.avgKapKg?.toLocaleString('id-ID', {maximumFractionDigits: 0}) || 0
+      ]);
+    }
 
-    const tableFoot = [
-      [
-        { content: 'TOTAL', styles: { fontStyle: 'bold', fillColor: [245, 245, 245] } },
-        { content: '-', styles: { halign: 'center', fillColor: [245, 245, 245] } },
-        { content: tableTotals.totalM3.toLocaleString('id-ID'), styles: { halign: 'right', fontStyle: 'bold', fillColor: [245, 245, 245] } },
-        { content: '-', styles: { fillColor: [245, 245, 245] } },
-        { content: '-', styles: { fillColor: [245, 245, 245] } },
-        { content: tableTotals.totalPac.toLocaleString('id-ID'), styles: { halign: 'right', fontStyle: 'bold', fillColor: [245, 245, 245] } },
-        { content: '-', styles: { fillColor: [245, 245, 245] } },
-        { content: tableTotals.totalKap.toLocaleString('id-ID'), styles: { halign: 'right', fontStyle: 'bold', fillColor: [245, 245, 245] } },
-        { content: '-', styles: { fillColor: [245, 245, 245] } },
-      ],
-      [
-        { content: 'RATA-RATA', styles: { fontStyle: 'bold', fillColor: [240, 253, 250] } },
-        { content: tableTotals.avgAirBaku.toFixed(2), styles: { halign: 'center', fontStyle: 'bold', textColor: [15, 118, 110], fillColor: [240, 253, 250] } },
-        { content: tableTotals.avgM3.toLocaleString('id-ID', {maximumFractionDigits: 0}), styles: { halign: 'right', fontStyle: 'bold', fillColor: [240, 253, 250] } },
-        { content: '-', styles: { fillColor: [240, 253, 250] } },
-        { content: tableTotals.avgLps.toFixed(2), styles: { halign: 'center', fontStyle: 'bold', textColor: [29, 78, 216], fillColor: [240, 253, 250] } },
-        { content: tableTotals.avgPacKg.toLocaleString('id-ID', {maximumFractionDigits: 0}), styles: { halign: 'right', fontStyle: 'bold', fillColor: [240, 253, 250] } },
-        { content: tableTotals.avgDosePac.toFixed(2), styles: { halign: 'right', fontStyle: 'bold', textColor: [180, 83, 9], fillColor: [240, 253, 250] } },
-        { content: tableTotals.avgKapKg.toLocaleString('id-ID', {maximumFractionDigits: 0}), styles: { halign: 'right', fontStyle: 'bold', fillColor: [240, 253, 250] } },
-        { content: tableTotals.avgDoseKap.toFixed(2), styles: { halign: 'right', fontStyle: 'bold', textColor: [82, 82, 82], fillColor: [240, 253, 250] } },
-      ]
-    ];
-
+    // --- 4. EKSEKUSI CETAK TABEL ---
     autoTable(doc, {
-      startY: 35,
-      head: tableHead,
-      body: tableBody,
+      head: [tableColumn],
+      body: tableRows,
       foot: tableFoot,
+      startY: 38, // Tabel diturunin dikit biar nggak nabrak Kop
       theme: 'grid',
-      styles: {
-        fontSize: 8,
-        font: 'courier',
-        cellPadding: 2,
-        lineColor: [200, 200, 200],
-        lineWidth: 0.1,
+      headStyles: { 
+        fillColor: [23, 23, 23], 
+        textColor: 255,
+        halign: 'center'
       },
-      headStyles: {
-        fillColor: [23, 23, 23],
-        textColor: [255, 255, 255],
-        fontStyle: 'bold',
-        lineWidth: 0.1,
-        lineColor: [50, 50, 50]
+      footStyles: { 
+        fillColor: [240, 240, 240], 
+        textColor: [0, 0, 0], 
+        fontStyle: 'bold' 
       },
       columnStyles: {
-        0: { fontStyle: 'bold', fillColor: [255, 255, 255] },
-        1: { halign: 'center', textColor: [15, 118, 110], fillColor: [240, 253, 250] },
+        0: { halign: 'left' },
+        1: { halign: 'center' },
         2: { halign: 'right' },
-        3: { halign: 'right', textColor: [115, 115, 115], fontSize: 7 },
-        4: { halign: 'center', fontStyle: 'bold', textColor: [29, 78, 216], fillColor: [239, 246, 255] },
-        5: { halign: 'right', fillColor: [255, 251, 235] },
-        6: { halign: 'right', fontStyle: 'bold', textColor: [180, 83, 9], fillColor: [255, 251, 235] },
-        7: { halign: 'right' },
-        8: { halign: 'right', fontStyle: 'bold', textColor: [82, 82, 82] }
-      },
-      didParseCell: (data : any) => {
-        if (data.section === 'body' && data.column.index === 4) {
-          const lpsVal = parseFloat(data.cell.raw as string);
-          if (lpsVal > 80) {
-            data.cell.styles.textColor = [220, 38, 38];
-            data.cell.styles.fillColor = [254, 242, 242];
-          }
-        }
-      },
-    } as any);
+        3: { halign: 'center' },
+        4: { halign: 'right' },
+        5: { halign: 'right' },
+      }
+    });
 
-    const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
+    // --- 5. RENDER FOOTER PUSAT DATA ---
+    // Ambil koordinat Y pas di bawah tabel persis (biar dinamis ngikutin panjang tabel)
+    const finalY = (doc as any).lastAutoTable.finalY || 100;
+    
     doc.setFontSize(8);
     doc.setFont("helvetica", "italic");
-    doc.setTextColor(100, 100, 100);
-    doc.text("dicetak langsung dari PUSAT DATA BLUD AM TERINTEGRASI", 14, pageHeight - 10);
-    doc.text(`Generated: ${new Date().toLocaleString('id-ID')}`, 250, pageHeight - 10);
+    doc.setTextColor(120, 120, 120); // Warna abu-abu biar elegan
+    doc.text('* Dokumen ini dicetak otomatis dari PUSAT DATA BLUD AM TERINTEGRASI.', 14, finalY + 10);
 
-    doc.save(`Laporan_Produksi_${currentSpam.name.replace(/\s+/g, '_')}.pdf`);
+    // Download PDF-nya!
+    doc.save(`Laporan_Produksi_BLUD_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   // --- FUNGSI AI ---
@@ -380,8 +358,8 @@ export default function ProductionPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          spamName: currentSpam.name,         // <--- TAMBAHAN BARU
-          spamCapacity: currentSpam.capacity, // <--- TAMBAHAN BARU
+          spamName: currentSpam.name,         
+          spamCapacity: currentSpam.capacity,
           periodLabel: stats.periodLabel,
           stats: {
             totalProd: stats.totalProd,
@@ -431,7 +409,7 @@ export default function ProductionPage() {
             <div>
               <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2 uppercase"><Droplets className="w-6 h-6" /> URUSAN PRODUKSI</h1>
               <div className="flex items-center gap-2 text-xs font-mono text-neutral-500 mt-1">
-                <span className="bg-neutral-900 text-white px-2 py-0.5 rounded">DATA CENTER</span>
+                {/* <span className="bg-neutral-900 text-white px-2 py-0.5 rounded">DATA CENTER</span> */}
                 <span className="flex items-center gap-1">
                   {loading ? <span className="text-amber-600 animate-pulse"><Loader2 className="w-3 h-3 animate-spin"/> CONNECTING...</span> : <span className={`w-2 h-2 rounded-full ${filteredData.length > 0 ? 'bg-green-500' : 'bg-red-500'}`}></span>}
                   {loading ? '' : (filteredData.length > 0 ? 'DATABASE ONLINE' : 'NO DATA')}
@@ -526,20 +504,26 @@ export default function ProductionPage() {
                 <div className="absolute inset-0 border-2 border-transparent group-hover:border-teal-500 transition-colors pointer-events-none"></div>
               </div>
               
-              <div className="bg-white p-6 h-[100px]">
-                <p className="text-[10px] text-neutral-500 font-bold uppercase mb-1">Kapasitas Dimanfaatkan</p>
-                <p className="text-2xl font-mono font-bold text-blue-600">{stats?.avgLps} <span className="text-sm text-neutral-400 font-sans">LPS</span></p>
+              {/* CARD 2: KAPASITAS DIMANFAATKAN (UPDATED) */}
+              <div className="bg-white px-4 py-3 h-[100px] flex flex-col justify-between border border-transparent hover:border-blue-100 transition-colors shadow-sm">
+                <div>
+                  <p className="text-[10px] text-neutral-500 font-bold uppercase mb-0">Kapasitas Dimanfaatkan</p>
+                  <p className="text-xl font-mono font-bold text-blue-600 truncate tracking-tight">{stats?.avgLps} <span className="text-sm text-neutral-400 font-sans">LPS</span></p>
+                </div>
+                <div className="flex justify-between items-center border-t border-neutral-100 pt-1 text-[9px] font-mono text-neutral-500">
+                  <span title="Total Jam Operasi">Total: <span className="font-bold text-neutral-800">{stats?.totalJam}</span> jam</span>
+                  <span title="Rata-rata Jam Operasi" className="flex items-center gap-1"><Clock className="w-2.5 h-2.5"/> {stats?.avgJamDay} jam/hari</span>
+                </div>
               </div>
 
               {/* CARD 3: TOTAL PRODUKSI (UPDATED) */}
-              <div className="bg-white px-4 py-3 h-[100px] flex flex-col justify-between">
+              <div className="bg-white px-4 py-3 h-[100px] flex flex-col justify-between shadow-sm">
                 <div>
-                    <p className="text-[10px] text-neutral-500 font-bold uppercase mb-0">Total Produksi</p>
-                    <p className="text-xl font-mono font-bold text-neutral-900 truncate tracking-tight">{stats?.totalProd} <span className="text-sm text-neutral-400 font-sans">m³</span></p>
+                  <p className="text-[10px] text-neutral-500 font-bold uppercase mb-0">Total Produksi</p>
+                  <p className="text-xl font-mono font-bold text-neutral-900 truncate tracking-tight">{stats?.totalProd} <span className="text-sm text-neutral-400 font-sans">m³</span></p>
                 </div>
-                <div className="flex justify-between items-center border-t border-neutral-100 pt-1 text-[9px] font-mono text-neutral-500">
-                    <span title="Rata-rata Produksi / Hari">Avg: <span className="font-bold text-neutral-800">{stats?.avgProdDay}</span> m³/hari</span>
-                    <span title="Rata-rata Jam Operasi" className="flex items-center gap-1"><Clock className="w-2.5 h-2.5"/> {stats?.avgJamDay} jam</span>
+                <div className="flex items-center border-t border-neutral-100 pt-1 text-[9px] font-mono text-neutral-500">
+                  <span title="Rata-rata Produksi / Hari">Avg: <span className="font-bold text-neutral-800">{stats?.avgProdDay}</span> m³/hari</span>
                 </div>
               </div>
 
@@ -616,49 +600,7 @@ export default function ProductionPage() {
                      </div>
                   ) : (
                     <div className="text-sm text-neutral-700 leading-relaxed font-sans">
-                      {(aiSummary || '').split('\n').map((line, lineIndex) => {
-                        const trimmedLine = line.trim();
-                        // 1. Tangani baris kosong agar paragrafnya berjarak rapi
-                        if (!trimmedLine) return <div key={lineIndex} className="h-2"></div>;
-
-                        // 2. Cek apakah ini baris Bullet Point (diawali "* " atau "- ")
-                        const isBullet = trimmedLine.startsWith('* ') || trimmedLine.startsWith('- ');
-                        const cleanLine = isBullet ? trimmedLine.substring(2) : trimmedLine;
-
-                        // 3. Fungsi pintar untuk membedah Bold dan Italic
-                        const renderFormat = (text: string) => {
-                          // Regex untuk memecah berdasarkan **bold** ATAU *italic*
-                          const parts = text.split(/(\*\*.*?\*\*|\*.*?\*)/g);
-                          
-                          return parts.map((part, partIndex) => {
-                            if (part.startsWith('**') && part.endsWith('**')) {
-                              // Teks Bold
-                              return <strong key={partIndex} className="font-bold text-indigo-900">{part.slice(2, -2)}</strong>;
-                            } else if (part.startsWith('*') && part.endsWith('*')) {
-                              // Teks Italic
-                              return <em key={partIndex} className="italic text-indigo-700">{part.slice(1, -1)}</em>;
-                            }
-                            // Teks Biasa
-                            return <span key={partIndex}>{part}</span>;
-                          });
-                        };
-
-                        // 4. Render tampilan akhirnya
-                        if (isBullet) {
-                          return (
-                            <div key={lineIndex} className="flex items-start gap-2 mb-1.5 ml-2">
-                              <span className="text-indigo-500 font-bold mt-0.5">•</span>
-                              <div className="flex-1">{renderFormat(cleanLine)}</div>
-                            </div>
-                          );
-                        }
-
-                        return (
-                          <p key={lineIndex} className="mb-2 text-justify">
-                            {renderFormat(cleanLine)}
-                          </p>
-                        );
-                      })}
+                      <AiTextFormatter text={aiSummary || ''} />
                     </div>
                   )}
                   
@@ -666,7 +608,7 @@ export default function ProductionPage() {
                   {!isAiLoading && aiSummary && (
                     <p className="mt-4 text-[10px] text-neutral-400 italic flex items-start gap-1">
                        <span className="text-[12px] leading-none">⚠️</span>
-                       Kesimpulan ini dihasilkan oleh AI (Google Gemini) berdasarkan data rentang waktu yang Anda pilih dan dapat mengandung ketidakakuratan. Harap selalu gunakan kebijakan profesional Anda dalam pengambilan keputusan operasional.
+                       Kesimpulan ini dihasilkan oleh AI (Google Gemini), Kesimpulan ini dihasilkan oleh AI (Google Gemini), bisa saja salah.
                     </p>
                   )}
                 </div>
@@ -746,26 +688,29 @@ export default function ProductionPage() {
               </div>
             </div>
 
-            <div className="bg-white border border-neutral-200 shadow-sm rounded-sm overflow-hidden mb-12">
+            <div id="area-cetak-tabel" className="bg-white border border-neutral-200 shadow-sm rounded-sm overflow-hidden mb-12 p-4">
               <div className="p-4 border-b border-neutral-200 bg-neutral-50 flex justify-between items-center">
-                <h3 className="text-sm font-bold uppercase">Log Data Laporan (Total & Rata-rata Harian)</h3>
+                <h3 className="text-sm font-bold uppercase">Log Data</h3>
                 <div className="flex gap-2">
                    <button onClick={handleExportExcel} className="flex items-center gap-1 px-3 py-1.5 bg-green-50 text-green-700 text-xs font-bold border border-green-200 rounded hover:bg-green-100 transition-colors"><FileSpreadsheet className="w-3 h-3" /> EXCEL</button>
                   <button onClick={handleExportPDF} className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-700 text-xs font-bold border border-red-200 rounded hover:bg-red-100 transition-colors"><FileText className="w-3 h-3" /> PDF</button>
                 </div>
               </div>
-              <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+              <div className="overflow-x-auto">
                 <table className="w-full text-xs font-mono text-left border-collapse">
                   <thead className="bg-neutral-900 text-white sticky top-0 z-10">
                     <tr>
                       <th className="px-4 py-3 font-medium align-top">BULAN</th>
                       <th className="px-4 py-3 text-center align-top bg-teal-900 border-x border-teal-800">AIR BAKU<br/><span className="text-[10px] font-normal text-teal-300">(LPS)</span></th>
-                      <th className="px-4 py-3 text-right align-top"><div>PRODUKSI (m³)</div><div className="text-[10px] text-neutral-400 font-normal">Avg (m³/hari)</div></th>
-                      <th className="px-4 py-3 text-center bg-blue-900 align-middle border-x border-blue-800">LPS</th>
-                      <th className="px-4 py-3 text-right text-amber-200 align-top"><div>PAC (Kg)</div><div className="text-[10px] text-amber-100/60 font-normal">Avg (Kg/hari)</div></th>
-                      <th className="px-4 py-3 text-right text-amber-200 align-middle">DOSIS (mg/l)</th>
-                      <th className="px-4 py-3 text-right text-neutral-300 align-top"><div>KAP (Kg)</div><div className="text-[10px] text-neutral-400 font-normal">Avg (Kg/hari)</div></th>
-                      <th className="px-4 py-3 text-right text-neutral-300 align-middle">DOSIS (mg/l)</th>
+                      
+                      {/* KOLOM PRODUKSI & LPS DIGABUNG */}
+                      <th className="px-4 py-3 text-right align-top"><div>PRODUKSI (m³)</div><div className="text-[10px] text-neutral-400 font-normal">Avg & LPS</div></th>
+                      
+                      {/* KOLOM JAM OPERASI */}
+                      <th className="px-4 py-3 text-right align-top border-l border-r border-neutral-700"><div>JAM OPR</div><div className="text-[10px] text-neutral-400 font-normal">Avg (jam/hari)</div></th>
+                      
+                      <th className="px-4 py-3 text-right text-amber-200 align-top border-r border-amber-800/30"><div>PAC (Kg)</div><div className="text-[10px] text-amber-100/60 font-normal">Avg & Dosis</div></th>
+                      <th className="px-4 py-3 text-right text-neutral-300 align-top"><div>KAP (Kg)</div><div className="text-[10px] text-neutral-400 font-normal">Avg & Dosis</div></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-200">
@@ -773,12 +718,30 @@ export default function ProductionPage() {
                       <tr key={idx} className="hover:bg-neutral-50 transition-colors">
                         <td className="px-4 py-3 font-bold align-middle whitespace-nowrap">{row.fullDateLabel}</td>
                         <td className="px-4 py-3 text-center font-bold text-teal-700 bg-teal-50/20 align-middle">{row.airBaku > 0 ? row.airBaku.toLocaleString('id-ID') : '-'}</td>
-                        <td className="px-4 py-2 text-right"><div className="font-bold text-neutral-900">{row.m3.toLocaleString('id-ID')}</div><div className="text-[10px] text-neutral-500">{row.avgProdDay.toLocaleString('id-ID')} / hari</div></td>
-                        <td className={`px-4 py-2 text-center font-bold align-middle ${row.lps > 80 ? 'text-red-600 bg-red-50' : 'text-blue-700 bg-blue-50/50'}`}>{row.lps}</td>
-                        <td className="px-4 py-2 text-right bg-amber-50/30"><div className="font-bold text-neutral-900">{row.pacKg.toLocaleString('id-ID')}</div><div className="text-[10px] text-neutral-500">{row.avgPacDay} / hari</div></td>
-                        <td className="px-4 py-2 text-right font-medium text-amber-700 align-middle bg-amber-50/30">{row.dosePac}</td>
-                        <td className="px-4 py-2 text-right"><div className="font-bold text-neutral-900">{row.kapKg}</div><div className="text-[10px] text-neutral-500">{row.avgKapDay} / hari</div></td>
-                        <td className="px-4 py-2 text-right font-medium text-neutral-600 align-middle">{row.doseKap}</td>
+                        
+                        {/* DATA PRODUKSI & LPS DIGABUNG */}
+                        <td className="px-4 py-2 text-right align-middle">
+                          <div className="font-bold text-neutral-900">{row.m3.toLocaleString('id-ID')}</div>
+                          <div className="text-[10px] text-neutral-500">{row.avgProdDay.toLocaleString('id-ID')} / hari</div>
+                          <div className={`text-[10px] font-bold mt-0.5 ${row.lps > 80 ? 'text-red-600' : 'text-blue-600'}`}>{row.lps} LPS</div>
+                        </td>
+                        
+                        {/* DATA JAM OPERASI */}
+                        <td className="px-4 py-2 text-right align-middle border-l border-r border-neutral-100 bg-neutral-50/50">
+                          <div className="font-bold text-neutral-900">{row.jam?.toLocaleString('id-ID') || 0}</div>
+                          <div className="text-[10px] text-neutral-500">{row.avgJamDay} / hari</div>
+                        </td>
+
+                        <td className="px-4 py-2 text-right bg-amber-50/30 align-middle">
+                          <div className="font-bold text-neutral-900">{row.pacKg.toLocaleString('id-ID')}</div>
+                          <div className="text-[10px] text-neutral-500">{row.avgPacDay} / hari</div>
+                          <div className="text-[10px] font-bold text-amber-700 mt-0.5">{row.dosePac} mg/l</div>
+                        </td>
+                        <td className="px-4 py-2 text-right align-middle">
+                          <div className="font-bold text-neutral-900">{row.kapKg}</div>
+                          <div className="text-[10px] text-neutral-500">{row.avgKapDay} / hari</div>
+                          <div className="text-[10px] font-bold text-neutral-600 mt-0.5">{row.doseKap} mg/l</div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -787,22 +750,40 @@ export default function ProductionPage() {
                       <tr className="text-neutral-900">
                         <td className="px-4 py-3">TOTAL</td>
                         <td className="px-4 py-3 text-center">-</td>
-                        <td className="px-4 py-3 text-right">{tableTotals.totalM3.toLocaleString('id-ID')}</td>
-                        <td className="px-4 py-3 text-center">-</td>
-                        <td className="px-4 py-3 text-right">{tableTotals.totalPac.toLocaleString('id-ID')}</td>
-                        <td className="px-4 py-3 text-center">-</td>
-                        <td className="px-4 py-3 text-right">{tableTotals.totalKap.toLocaleString('id-ID')}</td>
-                        <td className="px-4 py-3 text-center">-</td>
+                        
+                        {/* TOTAL PRODUKSI */}
+                        <td className="px-4 py-3 text-right align-middle">{tableTotals.totalM3.toLocaleString('id-ID')}</td>
+                        
+                        {/* TOTAL JAM OPERASI */}
+                        <td className="px-4 py-3 text-right align-middle border-l border-r border-neutral-200">{tableTotals.totalJam?.toLocaleString('id-ID') || 0}</td>
+
+                        <td className="px-4 py-3 text-right align-middle">{tableTotals.totalPac.toLocaleString('id-ID')}</td>
+                        <td className="px-4 py-3 text-right align-middle">{tableTotals.totalKap.toLocaleString('id-ID')}</td>
                       </tr>
-                      <tr className="text-neutral-700 bg-neutral-50">
-                        <td className="px-4 py-3 italic">RATA-RATA</td>
-                        <td className="px-4 py-3 text-center text-teal-700">{tableTotals.avgAirBaku.toFixed(2)}</td>
-                        <td className="px-4 py-3 text-right">{tableTotals.avgM3.toLocaleString('id-ID', {maximumFractionDigits: 0})}</td>
-                        <td className="px-4 py-3 text-center text-blue-700">{tableTotals.avgLps.toFixed(2)}</td>
-                        <td className="px-4 py-3 text-right">{tableTotals.avgPacKg.toLocaleString('id-ID', {maximumFractionDigits: 0})}</td>
-                        <td className="px-4 py-3 text-right text-amber-700">{tableTotals.avgDosePac.toFixed(2)}</td>
-                        <td className="px-4 py-3 text-right">{tableTotals.avgKapKg.toLocaleString('id-ID', {maximumFractionDigits: 0})}</td>
-                        <td className="px-4 py-3 text-right">{tableTotals.avgDoseKap.toFixed(2)}</td>
+                      <tr className="text-neutral-700 bg-neutral-50 border-t border-neutral-200">
+                        <td className="px-4 py-3 italic align-middle">RATA-RATA</td>
+                        <td className="px-4 py-3 text-center text-teal-700 align-middle">{tableTotals.avgAirBaku?.toFixed(2) || 0}</td>
+                        
+                        {/* RATA-RATA PRODUKSI & LPS DIGABUNG */}
+                        <td className="px-4 py-3 text-right align-middle">
+                          <div>{tableTotals.avgM3?.toLocaleString('id-ID', {maximumFractionDigits: 0}) || 0}</div>
+                          <div className="text-[10px] font-bold text-blue-600 mt-0.5">{tableTotals.avgLps?.toFixed(2) || 0} LPS</div>
+                        </td>
+                        
+                        {/* RATA-RATA JAM OPERASI */}
+                        <td className="px-4 py-3 text-right align-middle border-l border-r border-neutral-200">
+                          <div>{tableTotals.avgJam?.toFixed(0) || 0}</div>
+                          <div className="text-[10px] text-neutral-600 mt-0.5">{tableTotals.avgJamDaily?.toFixed(1) || 0} / hari</div>
+                        </td>
+
+                        <td className="px-4 py-3 text-right align-middle">
+                          <div>{tableTotals.avgPacKg?.toLocaleString('id-ID', {maximumFractionDigits: 0}) || 0} Kg</div>
+                          <div className="text-[10px] text-amber-700 mt-0.5">{tableTotals.avgDosePac?.toFixed(2) || 0} mg/l</div>
+                        </td>
+                        <td className="px-4 py-3 text-right align-middle">
+                          <div>{tableTotals.avgKapKg?.toLocaleString('id-ID', {maximumFractionDigits: 0}) || 0} Kg</div>
+                          <div className="text-[10px] text-neutral-600 mt-0.5">{tableTotals.avgDoseKap?.toFixed(2) || 0} mg/l</div>
+                        </td>
                       </tr>
                     </tfoot>
                   )}

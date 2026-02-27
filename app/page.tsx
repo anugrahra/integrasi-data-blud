@@ -40,14 +40,14 @@ export default function Home() {
     //   href: "/administrasi",
     //   // status: "Standby"
     // },
-    // {
-    //   title: "Perencanaan Teknik",
-    //   desc: "RAB, survey, proyek baru.",
-    //   icon: <Ruler className="w-6 h-6" />,
-    //   href: "/perencanaan",
-    //   // status: "In Progress",
-    //   highlight: false
-    // }
+    {
+      title: "Perencanaan Teknik",
+      desc: "DED, peta jaringan",
+      icon: <Ruler className="w-6 h-6" />,
+      href: "/perencanaan",
+      // status: "In Progress",
+      highlight: false
+    }
   ];
 
   return (
