@@ -62,12 +62,12 @@ export default function Home() {
             </div>
             <h1 className="text-xl font-bold tracking-tight">BLUD AIR MINUM</h1>
           </div>
-          <Link 
+          {/* <Link 
             href="/login" 
             className="text-sm font-medium text-neutral-500 hover:text-black transition-colors"
           >
             Login &rarr;
-          </Link>
+          </Link> */}
         </div>
       </header>
 

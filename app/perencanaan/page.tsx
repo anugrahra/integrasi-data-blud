@@ -226,7 +226,6 @@ export default function PerencanaanPage() {
             <div>
               <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2 uppercase"><Ruler className="w-6 h-6" /> PERENCANAAN TEKNIK</h1>
               <div className="flex items-center gap-2 text-xs font-mono text-neutral-500 mt-1">
-                <span className="bg-neutral-900 text-white px-2 py-0.5 rounded">ARSIP & ASET</span>
                 <span className="flex items-center gap-1">
                   {loading ? <span className="text-amber-600 animate-pulse"><Loader2 className="w-3 h-3 animate-spin"/> CONNECTING...</span> : <span className={`w-2 h-2 rounded-full ${rawData.length > 0 ? 'bg-blue-500' : 'bg-red-500'}`}></span>}
                   {loading ? '' : (rawData.length > 0 ? 'DATABASE ONLINE' : 'NO DATA')}
@@ -322,18 +321,15 @@ export default function PerencanaanPage() {
                     <div className="flex flex-col gap-3 relative z-10 mb-4 border-b border-indigo-50 pb-4">
                         <div className="flex items-center gap-2 text-indigo-900">
                             <Bot className="w-5 h-5 text-indigo-600" />
-                            <h3 className="text-sm font-bold uppercase tracking-tight">AI Archive Auditor</h3>
+                            <h3 className="text-sm font-bold uppercase tracking-tight">AI Assistant</h3>
                         </div>
-                        <p className="text-[10px] text-neutral-500 font-mono leading-relaxed">
-                            Audit status kelayakan, peringatan kedaluwarsa dokumen, dan kelengkapan data spasial secara otomatis.
-                        </p>
                         <button 
                             onClick={handleGenerateAiSummary}
                             disabled={isAiLoading || rawData.length === 0}
                             className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-xs font-bold rounded transition-colors shadow-sm w-full mt-1"
                         >
                             {isAiLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                            {isAiLoading ? 'MENGANALISIS ARSIP...' : 'AUDIT ARSIP SEKARANG'}
+                            {isAiLoading ? 'MENGANALISIS ...' : 'ASSIST ME'}
                         </button>
                     </div>
 
@@ -370,7 +366,7 @@ export default function PerencanaanPage() {
                             {!isAiLoading && aiSummary && (
                                 <p className="mt-4 text-[10px] text-neutral-400 italic flex items-start gap-1">
                                 <span className="text-[12px] leading-none">⚠️</span>
-                                Kesimpulan ini dihasilkan oleh AI (Google Gemini), bisa saja salah.
+                                Kesimpulan ini dihasilkan oleh AI (Google Gemini), bisa saja keliru.
                                 </p>
                             )}
                         </div>
@@ -383,7 +379,7 @@ export default function PerencanaanPage() {
             <div className="lg:col-span-2 bg-white border border-neutral-200 shadow-sm rounded-sm flex flex-col h-[700px]">
                 <div className="p-4 border-b border-neutral-200 bg-neutral-50 flex justify-between items-center shrink-0">
                     <div>
-                        <h3 className="text-sm font-bold uppercase">Detail Dokumen & Peta</h3>
+                        <h3 className="text-sm font-bold uppercase">Detail Dokumen</h3>
                         <p className="text-[10px] text-neutral-500 font-mono mt-0.5">Menampilkan: {activeFilter}</p>
                     </div>
                     <div className="flex gap-2">
