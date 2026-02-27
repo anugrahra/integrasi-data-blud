@@ -71,7 +71,7 @@ export default function LoginPage() {
   if (isChecking) {
     return (
       <main className="min-h-screen flex items-center justify-center bg-neutral-100 font-mono text-neutral-500 text-sm font-bold animate-pulse">
-        MEMERIKSA OTORISASI...
+        CHECKING ...
       </main>
     );
   }
