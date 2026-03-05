@@ -33,13 +33,13 @@ export default function Home() {
     //   href: "/pelayanan",
     //   // status: "Online"
     // },
-    // {
-    //   title: "Administrasi Umum",
-    //   desc: "Surat, aset/gudang, kepegawaian.",
-    //   icon: <FileText className="w-6 h-6" />,
-    //   href: "/administrasi",
-    //   // status: "Standby"
-    // },
+    {
+      title: "Administrasi Umum",
+      desc: "Surat, aset/gudang, kepegawaian.",
+      icon: <FileText className="w-6 h-6" />,
+      href: "/administrasi",
+      // status: "Standby"
+    },
     {
       title: "Perencanaan Teknik",
       desc: "DED, peta jaringan",

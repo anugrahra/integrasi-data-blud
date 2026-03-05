@@ -408,13 +408,6 @@ export default function ProductionPage() {
             <Link href="/" className="p-2 hover:bg-neutral-100 rounded-full transition-colors"><ArrowLeft className="w-5 h-5" /></Link>
             <div>
               <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2 uppercase"><Droplets className="w-6 h-6" /> URUSAN PRODUKSI</h1>
-              <div className="flex items-center gap-2 text-xs font-mono text-neutral-500 mt-1">
-                {/* <span className="bg-neutral-900 text-white px-2 py-0.5 rounded">DATA CENTER</span> */}
-                <span className="flex items-center gap-1">
-                  {loading ? <span className="text-amber-600 animate-pulse"><Loader2 className="w-3 h-3 animate-spin"/> CONNECTING...</span> : <span className={`w-2 h-2 rounded-full ${filteredData.length > 0 ? 'bg-green-500' : 'bg-red-500'}`}></span>}
-                  {loading ? '' : (filteredData.length > 0 ? 'DATABASE ONLINE' : 'NO DATA')}
-                </span>
-              </div>
             </div>
           </div>
 
