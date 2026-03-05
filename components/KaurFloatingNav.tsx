@@ -51,6 +51,8 @@ export default function KaurFloatingNav() {
             setDashboardUrl('/kaur-produksi');
           } else if (role.includes('perencanaan')) {
             setDashboardUrl('/kaur-perencanaan');
+          } else if (role.includes('administrasi')) {
+            setDashboardUrl('/kaur-administrasi');
           } else {
             setDashboardUrl('/'); // Admin lempar ke Beranda
           }

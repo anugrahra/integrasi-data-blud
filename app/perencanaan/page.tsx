@@ -4,7 +4,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   ArrowLeft, PenTool, Filter, Map as MapIcon, Layers, FileText, FileBadge, 
-  BookOpen, FileSpreadsheet, DownloadCloud, Loader2, CheckCircle2, AlertCircle, Clock, Sparkles, Bot, Copy, Check, Ruler 
+  BookOpen, FileSpreadsheet, DownloadCloud, Loader2, Search, AlertCircle, 
+  Clock, Sparkles, Bot, Copy, Check, Ruler, Eye, X 
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
@@ -36,7 +37,9 @@ export default function PerencanaanPage() {
   const [loading, setLoading] = useState(true);
   const [rawData, setRawData] = useState<any[]>([]);
   const [activeFilter, setActiveFilter] = useState<string>('All');
-  
+  const [searchTerm, setSearchTerm] = useState('');
+  const [previewDoc, setPreviewDoc] = useState<any | null>(null);
+
   // --- AMBIL DATA DARI SUPABASE ---
   useEffect(() => {
     const fetchData = async () => {
@@ -61,6 +64,22 @@ export default function PerencanaanPage() {
   const filteredData = useMemo(() => {
     let data = activeFilter === 'All' ? rawData : rawData.filter(d => d.kategori === activeFilter);
     
+    // --- BLOK SEARCH YANG UDAH DI-DEBUG (ANTI CRASH) ---
+    if (searchTerm) {
+      const lowerSearch = searchTerm.toLowerCase();
+      data = data.filter(d => {
+        // Amankan kalau ada data null dari database
+        const uraian = (d.uraian || '').toLowerCase();
+        const keterangan = (d.keterangan || '').toLowerCase();
+        const kode = (d.kode_dokumen || '').toLowerCase();
+        
+        return uraian.includes(lowerSearch) || 
+               keterangan.includes(lowerSearch) || 
+               kode.includes(lowerSearch);
+      });
+    }
+    // ---------------------------------
+
     // Mapping format database ke format UI yang kita butuhkan
     return data.map(item => ({
       id: item.kode_dokumen,
@@ -72,7 +91,7 @@ export default function PerencanaanPage() {
       last_update: item.tanggal_update,
       file_url: item.file_url
     }));
-  }, [rawData, activeFilter]);
+  }, [rawData, activeFilter, searchTerm]); // JANGAN LUPA masukin searchTerm ke array dependency
 
   // --- STATISTIK ---
   const stats = useMemo(() => {
@@ -82,18 +101,6 @@ export default function PerencanaanPage() {
       dedCount: rawData.filter(d => d.kategori === 'DED').length,
       needsAttention: rawData.filter(d => ['Needs Update', 'Expiring Soon', 'Review'].includes(d.status)).length,
     };
-  }, [rawData]);
-
-  const chartData = useMemo(() => {
-    const counts = rawData.reduce((acc, curr) => {
-      acc[curr.kategori] = (acc[curr.kategori] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-    
-    return Object.keys(counts).map(key => ({
-      name: key.replace(' Jaringan', '').replace('Dokumen ', ''), // Singkat nama buat di chart
-      total: counts[key]
-    }));
   }, [rawData]);
 
 // --- STATE & FUNGSI AI ASSISTANT ---
@@ -120,7 +127,7 @@ export default function PerencanaanPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           currentDate: format(new Date(), 'dd MMMM yyyy', {locale: id}),
-          documents: rawData // Kirim semua data mentah ke AI
+          documents: rawData 
         })
       });
 
@@ -133,7 +140,6 @@ export default function PerencanaanPage() {
       setIsAiLoading(false);
     }
   };
-  // -----------------------------------
 
   // --- EXCEL EXPORT ---
   const handleExportExcel = () => {
@@ -277,7 +283,7 @@ export default function PerencanaanPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* LEFT: FILTER & CHART */}
+            {/* LEFT: FILTER & AI */}
             <div className="space-y-6">
                 <div className="bg-white p-5 border border-neutral-200 shadow-sm rounded-sm">
                     <h3 className="text-sm font-bold uppercase mb-4 flex items-center gap-2"><Filter className="w-4 h-4" /> Kategori Arsip</h3>
@@ -327,7 +333,6 @@ export default function PerencanaanPage() {
                         </button>
                     </div>
 
-                    {/* Area Hasil Teks */}
                     {(isAiLoading || aiSummary) && (
                         <div className="relative z-10 animate-in fade-in zoom-in-95 duration-300">
                             {!isAiLoading && aiSummary && (
@@ -355,8 +360,7 @@ export default function PerencanaanPage() {
                                     <AiTextFormatter text={aiSummary || ''} />
                                 </div>
                             )}
-
-                            {/* DISCLAIMER AI */}
+                            
                             {!isAiLoading && aiSummary && (
                                 <p className="mt-4 text-[10px] text-neutral-400 italic flex items-start gap-1">
                                 <span className="text-[12px] leading-none">⚠️</span>
@@ -366,19 +370,35 @@ export default function PerencanaanPage() {
                         </div>
                     )}
                 </div>
-                {/* ----------------------------------- */}
             </div>
 
             {/* RIGHT: DATA TABLE */}
             <div className="lg:col-span-2 bg-white border border-neutral-200 shadow-sm rounded-sm flex flex-col h-[700px]">
-                <div className="p-4 border-b border-neutral-200 bg-neutral-50 flex justify-between items-center shrink-0">
+                <div className="p-4 border-b border-neutral-200 bg-neutral-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0">
                     <div>
                         <h3 className="text-sm font-bold uppercase">Detail Dokumen</h3>
-                        <p className="text-[10px] text-neutral-500 font-mono mt-0.5">Menampilkan: {activeFilter}</p>
+                        <p className="text-[10px] text-neutral-500 font-mono mt-0.5">
+                            Menampilkan: {activeFilter} • {filteredData.length} Data
+                        </p>
                     </div>
-                    <div className="flex gap-2">
-                        <button onClick={handleExportExcel} className="flex items-center gap-1 px-3 py-1.5 bg-green-50 text-green-700 text-xs font-bold border border-green-200 rounded hover:bg-green-100 transition-colors"><FileSpreadsheet className="w-3 h-3" /> EXCEL</button>
-                        <button onClick={handleExportPDF} className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-700 text-xs font-bold border border-red-200 rounded hover:bg-red-100 transition-colors"><FileText className="w-3 h-3" /> PDF</button>
+                    
+                    <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                        {/* INPUT SEARCH BAR */}
+                        <div className="relative w-full sm:w-64">
+                            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+                            <input 
+                                type="text" 
+                                placeholder="Cari kode, uraian..." 
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-8 pr-3 py-1.5 text-xs font-mono border border-neutral-300 rounded-sm focus:border-blue-600 outline-none transition-all bg-white shadow-sm" 
+                            />
+                        </div>
+
+                        <div className="flex gap-2 w-full sm:w-auto">
+                            <button onClick={handleExportExcel} className="flex-1 sm:flex-none flex items-center justify-center gap-1 px-3 py-1.5 bg-green-50 text-green-700 text-xs font-bold border border-green-200 rounded hover:bg-green-100 transition-colors"><FileSpreadsheet className="w-3 h-3" /> EXCEL</button>
+                            <button onClick={handleExportPDF} className="flex-1 sm:flex-none flex items-center justify-center gap-1 px-3 py-1.5 bg-red-50 text-red-700 text-xs font-bold border border-red-200 rounded hover:bg-red-100 transition-colors"><FileText className="w-3 h-3" /> PDF</button>
+                        </div>
                     </div>
                 </div>
                 
@@ -392,7 +412,7 @@ export default function PerencanaanPage() {
                         <div className="flex flex-col items-center justify-center h-full text-neutral-400 border-2 border-dashed border-neutral-200 rounded-lg">
                             <FileText className="w-12 h-12 mb-4 text-neutral-300" />
                             <p className="text-sm font-bold">TIDAK ADA DOKUMEN</p>
-                            <p className="text-xs">Pilih kategori lain atau tambahkan data baru.</p>
+                            <p className="text-xs">Pencarian tidak ditemukan atau pilih kategori lain.</p>
                         </div>
                     ) : (
                         <div className="space-y-4">
@@ -403,6 +423,7 @@ export default function PerencanaanPage() {
                                 return (
                                     <div key={doc.id} className="group border border-neutral-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all bg-white relative">
                                         <div className="flex flex-col sm:flex-row gap-4">
+                                            
                                             {/* Icon Container */}
                                             <div className="hidden sm:flex shrink-0 w-12 h-12 bg-neutral-50 border border-neutral-100 rounded-md items-center justify-center">
                                                 <CatIcon className="w-6 h-6 text-neutral-400" />
@@ -425,17 +446,28 @@ export default function PerencanaanPage() {
                                                 </div>
                                             </div>
 
-                                            {/* Action Button (Cek URL File) */}
+                                            {/* Action Buttons (PREVIEW & UNDUH) */}
                                             <div className="shrink-0 flex sm:flex-col justify-end gap-2 border-t sm:border-t-0 pt-3 sm:pt-0 border-neutral-100">
                                                 {doc.file_url ? (
-                                                    <a 
-                                                        href={doc.file_url} 
-                                                        target="_blank" 
-                                                        rel="noopener noreferrer"
-                                                        className="flex-1 sm:flex-none flex items-center justify-center gap-1 px-3 py-2 bg-neutral-900 hover:bg-blue-600 text-white text-xs font-bold rounded transition-colors"
-                                                    >
-                                                        <DownloadCloud className="w-4 h-4" /> Unduh
-                                                    </a>
+                                                    <>
+                                                      {/* TOMBOL PREVIEW BARU */}
+                                                      <button 
+                                                          onClick={() => setPreviewDoc(doc)}
+                                                          className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold rounded transition-colors"
+                                                      >
+                                                          <Eye className="w-4 h-4" /> Lihat
+                                                      </button>
+
+                                                      {/* TOMBOL UNDUH ASLI */}
+                                                      <a 
+                                                          href={doc.file_url} 
+                                                          target="_blank" 
+                                                          rel="noopener noreferrer"
+                                                          className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-bold rounded transition-colors"
+                                                      >
+                                                          <DownloadCloud className="w-4 h-4" /> Unduh
+                                                      </a>
+                                                    </>
                                                 ) : (
                                                     <button disabled className="flex-1 sm:flex-none flex items-center justify-center gap-1 px-3 py-2 bg-neutral-100 text-neutral-400 text-xs font-bold rounded cursor-not-allowed" title="File belum diunggah">
                                                         <AlertCircle className="w-4 h-4" /> Belum Ada File
@@ -452,6 +484,70 @@ export default function PerencanaanPage() {
             </div>
         </div>
       </div>
+
+      {/* --- MODAL PREVIEW DOKUMEN --- */}
+      {previewDoc && (
+        <div className="fixed inset-0 z-[9999] flex flex-col bg-neutral-900/90 backdrop-blur-sm animate-in fade-in duration-200">
+          
+          {/* Header Modal */}
+          <div className="h-16 bg-neutral-950 border-b border-neutral-800 flex items-center justify-between px-6 shrink-0">
+            <div className="flex items-center gap-4 text-white overflow-hidden">
+              <div className="p-2 bg-neutral-800 rounded">
+                <FileText className="w-5 h-5 text-neutral-300" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-sm font-bold truncate">{previewDoc.uraian}</h3>
+                <p className="text-[10px] font-mono text-neutral-400">Kode: {previewDoc.id} • Format: {previewDoc.format}</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3 shrink-0">
+              <a 
+                href={previewDoc.file_url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="hidden sm:flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded transition-colors"
+              >
+                <DownloadCloud className="w-4 h-4" /> UNDUH FILE
+              </a>
+              <button 
+                onClick={() => setPreviewDoc(null)}
+                className="p-2 bg-neutral-800 hover:bg-red-600 text-neutral-300 hover:text-white rounded transition-colors"
+                title="Tutup Preview"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Area Iframe */}
+          <div className="flex-1 w-full max-w-6xl mx-auto p-4 md:p-6 flex items-center justify-center">
+            {/* Menggunakan Google Docs Viewer agar bisa buka PDF, DOCX, XLSX langsung di browser 
+              tanpa perlu user install plugin tambahan.
+            */}
+            <div className="w-full h-full bg-white rounded shadow-2xl overflow-hidden relative">
+              {/* Tampilan Loading sementara iframe memuat data */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-100 text-neutral-400 z-0">
+                <Loader2 className="w-8 h-8 animate-spin mb-3 text-blue-500" />
+                <p className="text-xs font-bold font-mono animate-pulse">MEMUAT DOKUMEN...</p>
+              </div>
+              
+              <iframe 
+                src={
+                  // Trik sakti: Kalau PDF biasa bisa langsung, kalau office kita lempar ke GDocs Viewer
+                  previewDoc.file_url.toLowerCase().endsWith('.pdf') 
+                  ? `${previewDoc.file_url}#view=FitH` 
+                  : `https://docs.google.com/gview?url=${encodeURIComponent(previewDoc.file_url)}&embedded=true`
+                }
+                className="w-full h-full relative z-10 border-none bg-white"
+                title="Document Preview"
+              />
+            </div>
+          </div>
+
+        </div>
+      )}
+
     </main>
   );
 }

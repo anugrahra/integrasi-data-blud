@@ -31,7 +31,9 @@ export async function GET(request: Request) {
           redirectTo = '/kaur-produksi'
         } else if (role.includes('perencanaan')) {
           redirectTo = '/kaur-perencanaan'
-        } 
+        } else if (role.includes('administrasi')) {
+          redirectTo = '/kaur-administrasi'
+        }
         // Note: Kalau role-nya 'admin', dia bakal tetep pakai default '/', 
         // biarin Admin mendarat di Beranda biar dia bebas milih mau masuk ke mana.
       }
