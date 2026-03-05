@@ -5,7 +5,8 @@ import {
   Users, 
   FileText, 
   Ruler, 
-  ArrowRight 
+  ArrowRight,
+  FlaskConical
 } from 'lucide-react';
 
 export default function Home() {
@@ -45,6 +46,14 @@ export default function Home() {
       desc: "DED, peta jaringan",
       icon: <Ruler className="w-6 h-6" />,
       href: "/perencanaan",
+      // status: "In Progress",
+      highlight: false
+    },
+    {
+      title: "Laboratorium",
+      desc: "Kualitas air, uji laboratorium",
+      icon: <FlaskConical className="w-6 h-6" />,
+      href: "/laboratorium",
       // status: "In Progress",
       highlight: false
     }
