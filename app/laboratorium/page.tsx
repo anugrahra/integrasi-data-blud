@@ -42,7 +42,6 @@ const PARAMETERS = [
 const PIPELINE_ORDER = [
   'Reservoir (Hulu)', 
   'Citeureup', 
-  'Cimahi', 
   'Karang Mekar', 
   'Kasih Bunda', 
   'Cigugur', 
@@ -108,14 +107,20 @@ export default function LaboratoriumPublicPage() {
   // Prefix pencarian data (Misal: '2025' atau '2025-11')
   const currentPeriodPrefix = selectedMonth === 'ALL' ? selectedYear : `${selectedYear}-${selectedMonth}`;
   
-  // Prefix pencarian perbandingan (Tahun Lalu atau Bulan Lalu)
+  // PERBAIKAN LOGIKA PENCARIAN PERBANDINGAN
   const prevPeriodPrefix = useMemo(() => {
-    if (!selectedYear) return '';
+    if (!selectedYear || labData.length === 0) return '';
+    
+    // Jika Tahunan: Ambil tahun sebelumnya
     if (selectedMonth === 'ALL') return String(Number(selectedYear) - 1);
     
-    const d = parseISO(`${selectedYear}-${selectedMonth}-01`);
-    return format(subMonths(d, 1), 'yyyy-MM');
-  }, [selectedYear, selectedMonth]);
+    // Jika Bulanan (Data Musiman): Cari bulan terakhir yang beneran ADA datanya sebelum bulan ini
+    const currentFullMonth = `${selectedYear}-${selectedMonth}`;
+    const allExistingMonths = Array.from(new Set(labData.map(d => d.tgl_uji.substring(0, 7)))).sort();
+    const currentIndex = allExistingMonths.indexOf(currentFullMonth);
+    
+    return currentIndex > 0 ? allExistingMonths[currentIndex - 1] : '';
+  }, [selectedYear, selectedMonth, labData]);
 
   // Label untuk Banner & PDF
   const periodLabel = useMemo(() => {
@@ -126,28 +131,53 @@ export default function LaboratoriumPublicPage() {
   }, [selectedYear, selectedMonth]);
 
   const prevPeriodLabel = useMemo(() => {
-    if (!selectedYear) return '';
+    if (!prevPeriodPrefix) return 'TIDAK ADA DATA PEMBANDING';
     return selectedMonth === 'ALL' 
       ? `TAHUN ${prevPeriodPrefix}` 
       : format(parseISO(`${prevPeriodPrefix}-01`), 'MMMM yyyy', {locale: id}).toUpperCase();
-  }, [selectedYear, selectedMonth, prevPeriodPrefix]);
+  }, [selectedMonth, prevPeriodPrefix]);
 
   const currentParamConfig = useMemo(() => PARAMETERS.find(p => p.id === activeParam) || PARAMETERS[0], [activeParam]);
 
   // --- STATISTIK UMUM (Berdasarkan Prefix Aktif) ---
-  const stats = useMemo(() => {
+const stats = useMemo(() => {
     const dataPeriod = labData.filter(d => d.tgl_uji.startsWith(currentPeriodPrefix));
-    const total = dataPeriod.length;
-    const aman = dataPeriod.filter(d => d.status === 'Memenuhi' || d.status === 'Peringatan').length;
-    const persentase = total > 0 ? Math.round((aman / total) * 100) : 0;
     
-    return { total, aman, persentase };
+    let totalParameterDiuji = 0;
+    let totalParameterAman = 0;
+
+    dataPeriod.forEach(row => {
+      PARAMETERS.forEach(p => {
+        // Ambil nilai dari database, pastikan formatnya angka
+        const val = row[p.id];
+        
+        if (val !== null && val !== undefined && val !== '') {
+          const numVal = Number(val);
+          totalParameterDiuji++;
+          
+          let isAman = true;
+          // Cek apakah melanggar batas atas (Max) atau batas bawah (Min)
+          if (p.max !== undefined && numVal > p.max) isAman = false;
+          if (p.min !== undefined && numVal < p.min) isAman = false;
+
+          if (isAman) totalParameterAman++;
+        }
+      });
+    });
+
+    const persentase = totalParameterDiuji > 0 
+      ? Math.round((totalParameterAman / totalParameterDiuji) * 100) 
+      : 0;
+    
+    return { total: totalParameterDiuji, aman: totalParameterAman, persentase };
   }, [labData, currentPeriodPrefix]);
 
   // --- FUNGSI DELTA UNTUK CAROUSEL ---
   const getDelta = (key: string, invertedLogic = false) => {
     const dataCurr = labData.filter(d => d.tgl_uji.startsWith(currentPeriodPrefix));
-    const dataPrev = labData.filter(d => d.tgl_uji.startsWith(prevPeriodPrefix));
+    
+    // Amankan agar tidak memfilter semua data jika prevPeriodPrefix kosong
+    const dataPrev = prevPeriodPrefix ? labData.filter(d => d.tgl_uji.startsWith(prevPeriodPrefix)) : [];
     
     const avgCurr = dataCurr.length ? dataCurr.reduce((a, c) => a + Number((c as any)[key] || 0), 0) / dataCurr.length : 0;
     const avgPrev = dataPrev.length ? dataPrev.reduce((a, c) => a + Number((c as any)[key] || 0), 0) / dataPrev.length : 0;
@@ -185,7 +215,9 @@ export default function LaboratoriumPublicPage() {
   // --- DATA GRAFIK TOPOGRAFI PIPA (HULU KE HILIR) DENGAN RATA-RATA ---
   const chartData = useMemo(() => {
     const currentData = labData.filter(d => d.tgl_uji.startsWith(currentPeriodPrefix));
-    const compareData = labData.filter(d => d.tgl_uji.startsWith(prevPeriodPrefix));
+    
+    // Amankan agar tidak memfilter semua data jika prevPeriodPrefix kosong
+    const compareData = prevPeriodPrefix ? labData.filter(d => d.tgl_uji.startsWith(prevPeriodPrefix)) : [];
 
     return PIPELINE_ORDER.map(lokasi => {
       // 1. Ambil kata kunci utama (hapus embel-embel Hulu/Hilir biar gampang dicari)
@@ -397,7 +429,7 @@ export default function LaboratoriumPublicPage() {
             
             <div className="flex items-center gap-3">
                <span className="text-xs font-bold text-neutral-500 uppercase tracking-wider flex items-center gap-2">
-                  <CalendarDays className="w-4 h-4"/> Filter:
+                  <CalendarDays className="w-4 h-4"/> :
                </span>
                <div className="flex bg-neutral-900 rounded-md shadow-sm overflow-hidden border border-neutral-800">
                   <select 
@@ -470,7 +502,7 @@ export default function LaboratoriumPublicPage() {
                       </h2>
                       
                       <div className="bg-white text-emerald-800 px-5 py-1.5 rounded-full font-black text-lg font-mono mt-2 mb-4 shadow-sm border-2 border-emerald-300">
-                         {stats.aman} / {stats.total} SAMPEL
+                         {stats.aman} / {stats.total} Parameter
                       </div>
 
                       <p className="text-emerald-100 text-xs leading-relaxed font-medium">
@@ -505,7 +537,7 @@ export default function LaboratoriumPublicPage() {
                             <div className="text-left">
                               <p className="text-xs font-black font-mono leading-none">{slide.diff.diff} {slide.unit}</p>
                               <p className="text-[9px] font-bold mt-0.5 opacity-80 uppercase">
-                                 Vs {selectedMonth === 'ALL' ? 'Tahun Lalu' : 'Bulan Lalu'}
+                                 Vs {selectedMonth === 'ALL' ? 'Tahun Lalu' : 'Periode Lalu'}
                               </p>
                             </div>
                           </div>
@@ -569,16 +601,16 @@ export default function LaboratoriumPublicPage() {
                         <p className="text-xs text-neutral-500 mt-1">Mengurutkan titik *sampling* berdasarkan jarak alami aliran air dari reservoir.</p>
                     </div>
                     
-                    {/* <label className="flex items-center gap-3 cursor-pointer shrink-0 bg-white px-4 py-2 rounded-lg border border-neutral-300 shadow-sm hover:border-blue-400 transition-colors">
+                    <label className="flex items-center gap-3 cursor-pointer shrink-0 bg-white px-4 py-2 rounded-lg border border-neutral-300 shadow-sm hover:border-blue-400 transition-colors">
                       <div className="relative">
                         <input type="checkbox" className="sr-only" checked={showComparison} onChange={() => setShowComparison(!showComparison)} />
                         <div className={`block w-10 h-5 rounded-full transition-colors ${showComparison ? 'bg-indigo-500' : 'bg-neutral-300'}`}></div>
                         <div className={`dot absolute left-1 top-1 bg-white w-3 h-3 rounded-full transition-transform ${showComparison ? 'transform translate-x-5' : ''}`}></div>
                       </div>
                       <span className="text-xs font-bold text-neutral-700">
-                         Bandingkan {selectedMonth === 'ALL' ? 'Tahun Lalu' : 'Bulan Sebelumnya'}
+                         Bandingkan {selectedMonth === 'ALL' ? 'Tahun Lalu' : 'Periode Sebelumnya'}
                       </span>
-                    </label> */}
+                    </label>
                   </div>
 
                   <div className="flex gap-8 overflow-x-auto hide-scroll pb-2">
@@ -807,8 +839,8 @@ export default function LaboratoriumPublicPage() {
                               <th className="px-2 py-2 border-r border-neutral-300 text-center bg-indigo-50/50">Nitrat<br/><span className="font-normal text-indigo-500 font-mono">mg/l</span></th>
                               <th className="px-2 py-2 border-r border-neutral-300 text-center bg-indigo-50/50">Nitrit<br/><span className="font-normal text-indigo-500 font-mono">mg/l</span></th>
 
-                              <th className="px-2 py-2 border-r border-neutral-300 text-center bg-purple-50/50">Coliform<br/><span className="font-normal text-purple-500 font-mono">CFU</span></th>
-                              <th className="px-2 py-2 border-r border-neutral-300 text-center bg-purple-50/50">E.Coli<br/><span className="font-normal text-purple-500 font-mono">CFU</span></th>
+                              <th className="px-2 py-2 border-r border-neutral-300 text-center bg-purple-50/50">Coliform<br/><span className="font-normal text-purple-500 font-mono">CFU/100ml</span></th>
+                              <th className="px-2 py-2 border-r border-neutral-300 text-center bg-purple-50/50">E.Coli<br/><span className="font-normal text-purple-500 font-mono">CFU/100ml</span></th>
                           </tr>
                       </thead>
                       
