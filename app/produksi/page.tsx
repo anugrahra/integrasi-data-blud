@@ -694,45 +694,45 @@ export default function ProductionPage() {
                   <thead className="bg-neutral-900 text-white sticky top-0 z-10">
                     <tr>
                       <th className="px-4 py-3 font-medium align-top">BULAN</th>
-                      <th className="px-4 py-3 text-center align-top bg-teal-900 border-x border-teal-800">AIR BAKU<br/><span className="text-[10px] font-normal text-teal-300">(LPS)</span></th>
+                      <th className="px-4 py-3 text-center align-top bg-teal-900 border-x border-teal-800">AIR BAKU<br/></th>
                       
                       {/* KOLOM PRODUKSI & LPS DIGABUNG */}
-                      <th className="px-4 py-3 text-right align-top"><div>PRODUKSI (m³)</div><div className="text-[10px] text-neutral-400 font-normal">Avg & LPS</div></th>
+                      <th className="px-4 py-3 text-right align-top"><div>PRODUKSI</div><div className="text-[10px] text-neutral-400 font-normal">Avg & LPS</div></th>
                       
                       {/* KOLOM JAM OPERASI */}
-                      <th className="px-4 py-3 text-right align-top border-l border-r border-neutral-700"><div>JAM OPR</div><div className="text-[10px] text-neutral-400 font-normal">Avg (jam/hari)</div></th>
+                      <th className="px-4 py-3 text-right align-top border-l border-r border-neutral-700"><div>JAM OPR</div><div className="text-[10px] text-neutral-400 font-normal">Avg</div></th>
                       
-                      <th className="px-4 py-3 text-right text-amber-200 align-top border-r border-amber-800/30"><div>PAC (Kg)</div><div className="text-[10px] text-amber-100/60 font-normal">Avg & Dosis</div></th>
-                      <th className="px-4 py-3 text-right text-neutral-300 align-top"><div>KAP (Kg)</div><div className="text-[10px] text-neutral-400 font-normal">Avg & Dosis</div></th>
+                      <th className="px-4 py-3 text-right text-amber-200 align-top border-r border-amber-800/30"><div>PAC</div><div className="text-[10px] text-amber-100/60 font-normal">Avg & Dosis</div></th>
+                      <th className="px-4 py-3 text-right text-neutral-300 align-top"><div>KAP</div><div className="text-[10px] text-neutral-400 font-normal">Avg & Dosis</div></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-200">
                     {[...filteredData].reverse().map((row: any, idx: number) => (
                       <tr key={idx} className="hover:bg-neutral-50 transition-colors">
                         <td className="px-4 py-3 font-bold align-middle whitespace-nowrap">{row.fullDateLabel}</td>
-                        <td className="px-4 py-3 text-center font-bold text-teal-700 bg-teal-50/20 align-middle">{row.airBaku > 0 ? row.airBaku.toLocaleString('id-ID') : '-'}</td>
+                        <td className="px-4 py-3 text-center font-bold text-teal-700 bg-teal-50/20 align-middle">{row.airBaku > 0 ? row.airBaku.toLocaleString('id-ID') : '-'} LPS</td>
                         
                         {/* DATA PRODUKSI & LPS DIGABUNG */}
                         <td className="px-4 py-2 text-right align-middle">
-                          <div className="font-bold text-neutral-900">{row.m3.toLocaleString('id-ID')}</div>
-                          <div className="text-[10px] text-neutral-500">{row.avgProdDay.toLocaleString('id-ID')} / hari</div>
+                          <div className="font-bold text-neutral-900">{row.m3.toLocaleString('id-ID')} m³</div>
+                          <div className="text-[10px] text-neutral-500">{row.avgProdDay.toLocaleString('id-ID')} m³/hari</div>
                           <div className={`text-[10px] font-bold mt-0.5 ${row.lps > 80 ? 'text-red-600' : 'text-blue-600'}`}>{row.lps} LPS</div>
                         </td>
                         
                         {/* DATA JAM OPERASI */}
                         <td className="px-4 py-2 text-right align-middle border-l border-r border-neutral-100 bg-neutral-50/50">
-                          <div className="font-bold text-neutral-900">{row.jam?.toLocaleString('id-ID') || 0}</div>
-                          <div className="text-[10px] text-neutral-500">{row.avgJamDay} / hari</div>
+                          <div className="font-bold text-neutral-900">{row.jam?.toLocaleString('id-ID') || 0} jam/bulan</div>
+                          <div className="text-[10px] text-neutral-500">{row.avgJamDay} jam/hari</div>
                         </td>
 
                         <td className="px-4 py-2 text-right bg-amber-50/30 align-middle">
-                          <div className="font-bold text-neutral-900">{row.pacKg.toLocaleString('id-ID')}</div>
-                          <div className="text-[10px] text-neutral-500">{row.avgPacDay} / hari</div>
+                          <div className="font-bold text-neutral-900">{row.pacKg.toLocaleString('id-ID')} kg</div>
+                          <div className="text-[10px] text-neutral-500">{row.avgPacDay} kg/hari</div>
                           <div className="text-[10px] font-bold text-amber-700 mt-0.5">{row.dosePac} mg/l</div>
                         </td>
                         <td className="px-4 py-2 text-right align-middle">
                           <div className="font-bold text-neutral-900">{row.kapKg}</div>
-                          <div className="text-[10px] text-neutral-500">{row.avgKapDay} / hari</div>
+                          <div className="text-[10px] text-neutral-500">{row.avgKapDay} kg/hari</div>
                           <div className="text-[10px] font-bold text-neutral-600 mt-0.5">{row.doseKap} mg/l</div>
                         </td>
                       </tr>
@@ -745,28 +745,28 @@ export default function ProductionPage() {
                         <td className="px-4 py-3 text-center">-</td>
                         
                         {/* TOTAL PRODUKSI */}
-                        <td className="px-4 py-3 text-right align-middle">{tableTotals.totalM3.toLocaleString('id-ID')}</td>
+                        <td className="px-4 py-3 text-right align-middle">{tableTotals.totalM3.toLocaleString('id-ID')} m³</td>
                         
                         {/* TOTAL JAM OPERASI */}
-                        <td className="px-4 py-3 text-right align-middle border-l border-r border-neutral-200">{tableTotals.totalJam?.toLocaleString('id-ID') || 0}</td>
+                        <td className="px-4 py-3 text-right align-middle border-l border-r border-neutral-200">{tableTotals.totalJam?.toLocaleString('id-ID') || 0} jam</td>
 
-                        <td className="px-4 py-3 text-right align-middle">{tableTotals.totalPac.toLocaleString('id-ID')}</td>
-                        <td className="px-4 py-3 text-right align-middle">{tableTotals.totalKap.toLocaleString('id-ID')}</td>
+                        <td className="px-4 py-3 text-right align-middle">{tableTotals.totalPac.toLocaleString('id-ID')} kg</td>
+                        <td className="px-4 py-3 text-right align-middle">{tableTotals.totalKap.toLocaleString('id-ID')} kg</td>
                       </tr>
                       <tr className="text-neutral-700 bg-neutral-50 border-t border-neutral-200">
                         <td className="px-4 py-3 italic align-middle">RATA-RATA</td>
-                        <td className="px-4 py-3 text-center text-teal-700 align-middle">{tableTotals.avgAirBaku?.toFixed(2) || 0}</td>
+                        <td className="px-4 py-3 text-center text-teal-700 align-middle">{tableTotals.avgAirBaku?.toFixed(2) || 0} LPS</td>
                         
                         {/* RATA-RATA PRODUKSI & LPS DIGABUNG */}
                         <td className="px-4 py-3 text-right align-middle">
-                          <div>{tableTotals.avgM3?.toLocaleString('id-ID', {maximumFractionDigits: 0}) || 0}</div>
+                          <div>{tableTotals.avgM3?.toLocaleString('id-ID', {maximumFractionDigits: 0}) || 0} m³</div>
                           <div className="text-[10px] font-bold text-blue-600 mt-0.5">{tableTotals.avgLps?.toFixed(2) || 0} LPS</div>
                         </td>
                         
                         {/* RATA-RATA JAM OPERASI */}
                         <td className="px-4 py-3 text-right align-middle border-l border-r border-neutral-200">
-                          <div>{tableTotals.avgJam?.toFixed(0) || 0}</div>
-                          <div className="text-[10px] text-neutral-600 mt-0.5">{tableTotals.avgJamDaily?.toFixed(1) || 0} / hari</div>
+                          <div>{tableTotals.avgJam?.toFixed(0) || 0} jam/bulan</div>
+                          <div className="text-[10px] text-neutral-600 mt-0.5">{tableTotals.avgJamDaily?.toFixed(1) || 0} jam/hari</div>
                         </td>
 
                         <td className="px-4 py-3 text-right align-middle">
