@@ -112,8 +112,8 @@ export default function ProductionPage() {
         bulanLabel: format(dateObj, 'MMM yyyy', { locale: id }),
         fullDateLabel: format(dateObj, 'MMMM yyyy', { locale: id }),
         m3,
-        // lps: jam > 0 ? Number(((m3 * 1000) / (jam * 3600)).toFixed(2)) : 0,
-        lps: Number((m3 / days / 24 / 3.6).toFixed(2)),
+        lps: jam > 0 ? Number(((m3 * 1000) / (jam * 3600)).toFixed(2)) : 0,
+        // lps: Number((m3 / days / 24 / 3.6).toFixed(2)),
         avgProdDay: Number((m3 / days).toFixed(0)),
         jam, // added
         avgJamDay: Number((jam / days).toFixed(1)), // added logic
@@ -258,13 +258,13 @@ export default function ProductionPage() {
     // Ambil periode dari data terlama ke data terbaru (karena di UI posisinya dibalik)
     const dataUrut = [...filteredData].reverse();
     const periodeBulan = dataUrut.length > 0 
-      ? `${dataUrut[0].fullDateLabel} s/d ${dataUrut[dataUrut.length - 1].fullDateLabel}`
+      ? `${dataUrut[dataUrut.length - 1].fullDateLabel} s/d ${dataUrut[0].fullDateLabel}`
       : '-';
 
     // --- 2. RENDER KOP SURAT ---
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
-    doc.text('LAPORAN PRODUKSI AIR BERSIH', 14, 15);
+    doc.text('LAPORAN PRODUKSI AIR MINUM', 14, 15);
     
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
