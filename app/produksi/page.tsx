@@ -730,7 +730,7 @@ const handleExportPDF = () => {
     <tr>
       <th className="px-4 py-3 font-medium align-top">BULAN</th>
       <th className="px-4 py-3 text-center align-top bg-teal-900 border-x border-teal-800">DEBIT CATCHMENT AREA<br/><span className="text-[10px] text-blue-200 font-normal">LPS</span></th>
-      <th className="px-4 py-3 text-center align-top bg-blue-900 border-x border-blue-800">AIR BAKU<br/><span className="text-[10px] text-blue-200 font-normal">LPS</span></th>
+      <th className="px-4 py-3 text-center align-top bg-blue-900 border-x border-blue-800">AIR BAKU &#40;PIPA TRANSMISI&#41;<br/><span className="text-[10px] text-blue-200 font-normal">LPS</span></th>
       
       {/* KOLOM PRODUKSI & LPS DIGABUNG */}
       <th className="px-4 py-3 text-right align-top"><div>PRODUKSI</div><div className="text-[10px] text-neutral-400 font-normal">Avg & LPS</div></th>
