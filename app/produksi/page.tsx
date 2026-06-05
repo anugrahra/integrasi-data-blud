@@ -101,7 +101,7 @@ export default function ProductionPage() {
 
     return data.map(item => {
       const dateObj = parseISO(item.tanggal);
-      const days = Number(item.jumlah_hari) || getDaysInMonth(dateObj);
+      const days = getDaysInMonth(dateObj);
       const m3 = Number(item.volume_produksi) || 0;
       const jam = Number(item.jam_operasi) || 0;
       const pac = Number(item.pemakaian_pac) || 0;
@@ -112,8 +112,8 @@ export default function ProductionPage() {
         bulanLabel: format(dateObj, 'MMM yyyy', { locale: id }),
         fullDateLabel: format(dateObj, 'MMMM yyyy', { locale: id }),
         m3,
-        lps: jam > 0 ? Number(((m3 * 1000) / (jam * 3600)).toFixed(2)) : 0,
-        // lps: Number((m3 / days / 24 / 3.6).toFixed(2)),
+        // lps: jam > 0 ? Number(((m3 * 1000) / (jam * 3600)).toFixed(2)) : 0,
+        lps: Number((m3 / days / 24 / 3.6).toFixed(2)),
         avgProdDay: Number((m3 / days).toFixed(0)),
         jam, // added
         avgJamDay: Number((jam / days).toFixed(1)), // added logic
@@ -123,7 +123,8 @@ export default function ProductionPage() {
         kapKg: kaporit,
         avgKapDay: Number((kaporit / days).toFixed(1)),
         doseKap: m3 > 0 ? Number(((kaporit * 1000) / m3).toFixed(2)) : 0,
-        airBaku: Number(item.debit_air_baku) || 0, 
+        airBaku: Number(item.debit_air_baku) || 0,
+        pipaTransmisi: Number(item.debit_pipa_transmisi) || 0,
       };
     });
   }, [rawData, filterMode, selectedYear, customStart, customEnd]);
@@ -151,7 +152,9 @@ export default function ProductionPage() {
       avgJamDaily: avg('avgJamDay'),
       avgJam: avg('jam'),
       avgPacDaily: avg('avgPacDay'),
-      avgKapDaily: avg('avgKapDay')
+      avgKapDaily: avg('avgKapDay'),
+      totalPipaTransmisi: sum('pipaTransmisi'),
+      avgPipaTransmisi: avg('pipaTransmisi')
     };
   }, [filteredData]);
 
@@ -175,176 +178,208 @@ export default function ProductionPage() {
     };
   }, [tableTotals, filteredData]);
 
-  const handleExportExcel = () => {
-    if (!filteredData.length || !tableTotals) return;
+const handleExportExcel = () => {
+  if (!filteredData.length || !tableTotals) return;
 
-    const wsData: any[] = [
-      [`LAPORAN OPERASIONAL & PRODUKSI - ${currentSpam.name.toUpperCase()}`],
-      [`Periode: ${stats?.periodLabel}`],
-      [''],
-      ['BULAN', 'AIR BAKU (LPS)', 'PRODUKSI (m3)', 'AVG (m3/hari)', 'LPS', 'PAC (Kg)', 'AVG PAC (Kg/hari)', 'DOSIS PAC', 'KAP (Kg)', 'AVG KAP (Kg/hari)', 'DOSIS KAP']
-    ];
+  const wsData: any[] = [
+    [`LAPORAN OPERASIONAL & PRODUKSI - ${currentSpam.name.toUpperCase()}`],
+    [`Periode: ${stats?.periodLabel}`],
+    [''],
+    [
+      'BULAN', 
+      'DEBIT CATCHMENT AREA (LPS)', 
+      'AIR BAKU (LPS)', 
+      'PRODUKSI (m3)', 
+      'AVG (m3/hari)', 
+      'LPS', 
+      'PAC (Kg)', 
+      'AVG PAC (Kg/hari)', 
+      'DOSIS PAC (mg/l)', 
+      'KAP (Kg)', 
+      'AVG KAP (Kg/hari)', 
+      'DOSIS KAP (mg/l)'
+    ]
+  ];
 
-    filteredData.forEach(item => {
-      wsData.push([
-        item.fullDateLabel,
-        item.airBaku,
-        item.m3,
-        item.avgProdDay,
-        item.lps,
-        item.pacKg,
-        item.avgPacDay,
-        item.dosePac,
-        item.kapKg,
-        item.avgKapDay,
-        item.doseKap
-      ]);
-    });
-
-    wsData.push(['']);
+  // Mapping data baris demi baris
+  filteredData.forEach(item => {
     wsData.push([
-      'TOTAL', 
-      '-', 
-      tableTotals.totalM3, 
-      '-', 
-      '-', 
-      tableTotals.totalPac, 
-      '-', 
-      '-', 
-      tableTotals.totalKap, 
-      '-', 
-      '-'
+      item.fullDateLabel,
+      item.airBaku,
+      item.pipaTransmisi,
+      item.m3,
+      item.avgProdDay,
+      item.lps,
+      item.pacKg,
+      item.avgPacDay,
+      item.dosePac,
+      item.kapKg,
+      item.avgKapDay,
+      item.doseKap
     ]);
-    wsData.push([
-      'RATA-RATA', 
-      Number(tableTotals.avgAirBaku.toFixed(2)), 
-      Number(tableTotals.avgM3.toFixed(0)), 
-      '-', 
-      Number(tableTotals.avgLps.toFixed(2)), 
-      Number(tableTotals.avgPacKg.toFixed(0)), 
-      '-', 
-      Number(tableTotals.avgDosePac.toFixed(2)), 
-      Number(tableTotals.avgKapKg.toFixed(0)), 
-      '-', 
-      Number(tableTotals.avgDoseKap.toFixed(2))
+  });
+
+  wsData.push(['']); // Spasi kosong sebelum total
+
+  // BARIS TOTAL (Pastikan indeks sesuai dengan header)
+  wsData.push([
+    'TOTAL',           // Index 0
+    '-',               // Index 1 (Air Baku LPS - biasanya tidak ditotal)
+    tableTotals.totalPipaTransmisi, // Index 2 (Pipa Transmisi Total)
+    tableTotals.totalM3,           // Index 3
+    '-',                           // Index 4
+    '-',                           // Index 5
+    tableTotals.totalPac,          // Index 6
+    '-',                           // Index 7
+    '-',                           // Index 8
+    tableTotals.totalKap,          // Index 9
+    '-',                           // Index 10
+    '-'                            // Index 11
+  ]);
+
+  // BARIS RATA-RATA
+  wsData.push([
+    'RATA-RATA',                                     // Index 0
+    Number(tableTotals.avgAirBaku.toFixed(2)),       // Index 1
+    Number(tableTotals.avgPipaTransmisi.toFixed(2)), // Index 2
+    Number(tableTotals.avgM3.toFixed(0)),            // Index 3
+    '-',                                             // Index 4
+    Number(tableTotals.avgLps.toFixed(2)),           // Index 5
+    Number(tableTotals.avgPacKg.toFixed(0)),         // Index 6
+    '-',                                             // Index 7
+    Number(tableTotals.avgDosePac.toFixed(2)),       // Index 8
+    Number(tableTotals.avgKapKg.toFixed(0)),         // Index 9
+    '-',                                             // Index 10
+    Number(tableTotals.avgDoseKap.toFixed(2))        // Index 11
+  ]);
+
+  wsData.push(['']);
+  wsData.push(['']);
+  wsData.push(['Dicetak langsung dari PUSAT DATA BLUD AM TERINTEGRASI']);
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  
+  // Mengatur lebar kolom agar rapi
+  const wscols = (wsData[3] as any[]).map((_, i) => ({ wch: i === 0 ? 25 : 18 }));
+  ws['!cols'] = wscols;
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Laporan");
+  XLSX.writeFile(wb, `Laporan_Produksi_${currentSpam.id}_${format(new Date(), 'yyyyMMdd')}.xlsx`);
+};
+
+const handleExportPDF = () => {
+  // Kertas A4 ganti jadi posisi 'l' (Landscape) biar lega
+  const doc = new jsPDF('l', 'mm', 'a4'); 
+  
+  // --- 1. LOGIKA AMBIL INFO KOP SURAT ---
+  const uniqueSpam = Array.from(new Set(filteredData.map((item: any) => item.spam_id)));
+  let namaSpam = "SEMUA LOKASI SPAM";
+  if (uniqueSpam.length === 1) {
+    namaSpam = uniqueSpam[0] === 'cimahi_utara' ? 'SPAM CIMAHI UTARA' : 'SPAM PASIRKALIKI';
+  }
+
+  const dataUrut = [...filteredData].reverse();
+  const periodeBulan = dataUrut.length > 0 
+    ? `${dataUrut[dataUrut.length - 1].fullDateLabel} s/d ${dataUrut[0].fullDateLabel}`
+    : '-';
+
+  // --- 2. RENDER KOP SURAT ---
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text('LAPORAN PRODUKSI AIR MINUM', 14, 15);
+  
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Lokasi SPAM : ${namaSpam}`, 14, 22);
+  doc.text(`Periode     : ${periodeBulan}`, 14, 27);
+  doc.text(`Waktu Cetak : ${new Date().toLocaleDateString('id-ID')} - ${new Date().toLocaleTimeString('id-ID')}`, 14, 32);
+
+  // --- 3. SIAPIN DATA TABEL ---
+  // Menambahkan kolom PIPA TRANS (LPS)
+  const tableColumn = ["BULAN", "AIR BAKU (LPS)", "PIPA TRANS (LPS)", "PRODUKSI (m³)", "LPS", "TOTAL PAC (Kg)", "TOTAL KAPORIT (Kg)"];
+  
+  const tableRows: any[] = [];
+  dataUrut.forEach(row => {
+    tableRows.push([
+      row.fullDateLabel,
+      row.airBaku > 0 ? row.airBaku.toLocaleString('id-ID') : '-',
+      row.pipaTransmisi > 0 ? row.pipaTransmisi.toLocaleString('id-ID') : '-', // Data baru
+      row.m3.toLocaleString('id-ID'),
+      row.lps,
+      row.pacKg.toLocaleString('id-ID'),
+      row.kapKg.toLocaleString('id-ID')
     ]);
+  });
 
-    wsData.push(['']);
-    wsData.push(['']);
-    wsData.push(['dicetak langsung dari PUSAT DATA BLUD AM TERINTEGRASI']);
-
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
+  const tableFoot: any[] = [];
+  if (tableTotals) {
+    // BARIS TOTAL
+    tableFoot.push([
+      "TOTAL",
+      "-",
+      tableTotals.totalPipaTransmisi?.toLocaleString('id-ID') || 0, // Total Pipa Transmisi
+      tableTotals.totalM3.toLocaleString('id-ID'),
+      "-",
+      tableTotals.totalPac.toLocaleString('id-ID'),
+      tableTotals.totalKap.toLocaleString('id-ID')
+    ]);
     
-    const wscols = (wsData[3] as any[]).map((_, i) => ({ wch: i === 0 ? 20 : 15 }));
-    (ws as any)['!cols'] = wscols;
+    // BARIS RATA-RATA
+    tableFoot.push([
+      "RATA-RATA",
+      tableTotals.avgAirBaku?.toFixed(2) || 0,
+      tableTotals.avgPipaTransmisi?.toFixed(2) || 0, // Rata-rata Pipa Transmisi
+      tableTotals.avgM3?.toLocaleString('id-ID', {maximumFractionDigits: 0}) || 0,
+      tableTotals.avgLps?.toFixed(2) || 0,
+      tableTotals.avgPacKg?.toLocaleString('id-ID', {maximumFractionDigits: 0}) || 0,
+      tableTotals.avgKapKg?.toLocaleString('id-ID', {maximumFractionDigits: 0}) || 0
+    ]);
+  }
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Laporan");
-    XLSX.writeFile(wb, `Laporan_Produksi_${currentSpam.id}.xlsx`);
-  };
+  // --- 4. EKSEKUSI CETAK TABEL ---
+  autoTable(doc, {
+    head: [tableColumn],
+    body: tableRows,
+    foot: tableFoot,
+    startY: 38,
+    theme: 'grid',
+    headStyles: { 
+      fillColor: [23, 23, 23], 
+      textColor: 255,
+      halign: 'center',
+      fontSize: 9
+    },
+    footStyles: { 
+      fillColor: [240, 240, 240], 
+      textColor: [0, 0, 0], 
+      fontStyle: 'bold',
+      fontSize: 9
+    },
+    // Menyesuaikan indeks karena ada kolom baru (sekarang ada 7 kolom: 0-6)
+    columnStyles: {
+      0: { halign: 'left', cellWidth: 40 }, // Bulan
+      1: { halign: 'center' },              // Air Baku
+      2: { halign: 'center' },              // Pipa Transmisi (Baru)
+      3: { halign: 'right' },               // Produksi
+      4: { halign: 'center' },              // LPS
+      5: { halign: 'right' },               // PAC
+      6: { halign: 'right' },               // Kaporit
+    },
+    styles: { fontSize: 8, font: 'helvetica' }
+  });
 
-  const handleExportPDF = () => {
-    // Kertas A4 ganti jadi posisi 'l' (Landscape) biar lega
-    const doc = new jsPDF('l', 'mm', 'a4'); 
-    
-    // --- 1. LOGIKA AMBIL INFO KOP SURAT ---
-    // Cek SPAM apa yang lagi dipilih (ngecek dari id spam di data tabel)
-    const uniqueSpam = Array.from(new Set(filteredData.map((item: any) => item.spam_id)));
-    let namaSpam = "SEMUA LOKASI SPAM";
-    if (uniqueSpam.length === 1) {
-      namaSpam = uniqueSpam[0] === 'cimahi_utara' ? 'SPAM CIMAHI UTARA' : 'SPAM PASIRKALIKI';
-    }
+  // --- 5. RENDER FOOTER PUSAT DATA ---
+  const finalY = (doc as any).lastAutoTable.finalY || 100;
+  
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "italic");
+  doc.setTextColor(120, 120, 120);
+  doc.text('* Dokumen ini dicetak otomatis dari PUSAT DATA BLUD AM TERINTEGRASI.', 14, finalY + 10);
 
-    // Ambil periode dari data terlama ke data terbaru (karena di UI posisinya dibalik)
-    const dataUrut = [...filteredData].reverse();
-    const periodeBulan = dataUrut.length > 0 
-      ? `${dataUrut[dataUrut.length - 1].fullDateLabel} s/d ${dataUrut[0].fullDateLabel}`
-      : '-';
-
-    // --- 2. RENDER KOP SURAT ---
-    doc.setFontSize(14);
-    doc.setFont("helvetica", "bold");
-    doc.text('LAPORAN PRODUKSI AIR MINUM', 14, 15);
-    
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Lokasi SPAM : ${namaSpam}`, 14, 22);
-    doc.text(`Periode     : ${periodeBulan}`, 14, 27);
-    doc.text(`Waktu Cetak : ${new Date().toLocaleDateString('id-ID')} - ${new Date().toLocaleTimeString('id-ID')}`, 14, 32);
-
-    // --- 3. SIAPIN DATA TABEL ---
-    const tableColumn = ["BULAN", "AIR BAKU (LPS)", "PRODUKSI (m³)", "LPS", "TOTAL PAC (Kg)", "TOTAL KAPORIT (Kg)"];
-    const tableRows: any[] = [];
-    dataUrut.forEach(row => {
-      tableRows.push([
-        row.fullDateLabel,
-        row.airBaku > 0 ? row.airBaku.toLocaleString('id-ID') : '-',
-        row.m3.toLocaleString('id-ID'),
-        row.lps,
-        row.pacKg.toLocaleString('id-ID'),
-        row.kapKg.toLocaleString('id-ID')
-      ]);
-    });
-
-    const tableFoot: any[] = [];
-    if (tableTotals) {
-      tableFoot.push([
-        "TOTAL",
-        "-",
-        tableTotals.totalM3.toLocaleString('id-ID'),
-        "-",
-        tableTotals.totalPac.toLocaleString('id-ID'),
-        tableTotals.totalKap.toLocaleString('id-ID')
-      ]);
-      tableFoot.push([
-        "RATA-RATA",
-        tableTotals.avgAirBaku?.toFixed(2) || 0,
-        tableTotals.avgM3?.toLocaleString('id-ID', {maximumFractionDigits: 0}) || 0,
-        tableTotals.avgLps?.toFixed(2) || 0,
-        tableTotals.avgPacKg?.toLocaleString('id-ID', {maximumFractionDigits: 0}) || 0,
-        tableTotals.avgKapKg?.toLocaleString('id-ID', {maximumFractionDigits: 0}) || 0
-      ]);
-    }
-
-    // --- 4. EKSEKUSI CETAK TABEL ---
-    autoTable(doc, {
-      head: [tableColumn],
-      body: tableRows,
-      foot: tableFoot,
-      startY: 38, // Tabel diturunin dikit biar nggak nabrak Kop
-      theme: 'grid',
-      headStyles: { 
-        fillColor: [23, 23, 23], 
-        textColor: 255,
-        halign: 'center'
-      },
-      footStyles: { 
-        fillColor: [240, 240, 240], 
-        textColor: [0, 0, 0], 
-        fontStyle: 'bold' 
-      },
-      columnStyles: {
-        0: { halign: 'left' },
-        1: { halign: 'center' },
-        2: { halign: 'right' },
-        3: { halign: 'center' },
-        4: { halign: 'right' },
-        5: { halign: 'right' },
-      }
-    });
-
-    // --- 5. RENDER FOOTER PUSAT DATA ---
-    // Ambil koordinat Y pas di bawah tabel persis (biar dinamis ngikutin panjang tabel)
-    const finalY = (doc as any).lastAutoTable.finalY || 100;
-    
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "italic");
-    doc.setTextColor(120, 120, 120); // Warna abu-abu biar elegan
-    doc.text('* Dokumen ini dicetak otomatis dari PUSAT DATA BLUD AM TERINTEGRASI.', 14, finalY + 10);
-
-    // Download PDF-nya!
-    doc.save(`Laporan_Produksi_BLUD_${new Date().toISOString().split('T')[0]}.pdf`);
-  };
+  // Download PDF
+  doc.save(`Laporan_Produksi_BLUD_${new Date().toISOString().split('T')[0]}.pdf`);
+};
 
   // --- FUNGSI AI ---
   const handleGenerateAiSummary = async () => {
@@ -691,96 +726,99 @@ export default function ProductionPage() {
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs font-mono text-left border-collapse">
-                  <thead className="bg-neutral-900 text-white sticky top-0 z-10">
-                    <tr>
-                      <th className="px-4 py-3 font-medium align-top">BULAN</th>
-                      <th className="px-4 py-3 text-center align-top bg-teal-900 border-x border-teal-800">AIR BAKU<br/></th>
-                      
-                      {/* KOLOM PRODUKSI & LPS DIGABUNG */}
-                      <th className="px-4 py-3 text-right align-top"><div>PRODUKSI</div><div className="text-[10px] text-neutral-400 font-normal">Avg & LPS</div></th>
-                      
-                      {/* KOLOM JAM OPERASI */}
-                      <th className="px-4 py-3 text-right align-top border-l border-r border-neutral-700"><div>JAM OPR</div><div className="text-[10px] text-neutral-400 font-normal">Avg</div></th>
-                      
-                      <th className="px-4 py-3 text-right text-amber-200 align-top border-r border-amber-800/30"><div>PAC</div><div className="text-[10px] text-amber-100/60 font-normal">Avg & Dosis</div></th>
-                      <th className="px-4 py-3 text-right text-neutral-300 align-top"><div>KAP</div><div className="text-[10px] text-neutral-400 font-normal">Avg & Dosis</div></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-200">
-                    {[...filteredData].reverse().map((row: any, idx: number) => (
-                      <tr key={idx} className="hover:bg-neutral-50 transition-colors">
-                        <td className="px-4 py-3 font-bold align-middle whitespace-nowrap">{row.fullDateLabel}</td>
-                        <td className="px-4 py-3 text-center font-bold text-teal-700 bg-teal-50/20 align-middle">{row.airBaku > 0 ? row.airBaku.toLocaleString('id-ID') : '-'} LPS</td>
-                        
-                        {/* DATA PRODUKSI & LPS DIGABUNG */}
-                        <td className="px-4 py-2 text-right align-middle">
-                          <div className="font-bold text-neutral-900">{row.m3.toLocaleString('id-ID')} m³</div>
-                          <div className="text-[10px] text-neutral-500">{row.avgProdDay.toLocaleString('id-ID')} m³/hari</div>
-                          <div className={`text-[10px] font-bold mt-0.5 ${row.lps > 80 ? 'text-red-600' : 'text-blue-600'}`}>{row.lps} LPS</div>
-                        </td>
-                        
-                        {/* DATA JAM OPERASI */}
-                        <td className="px-4 py-2 text-right align-middle border-l border-r border-neutral-100 bg-neutral-50/50">
-                          <div className="font-bold text-neutral-900">{row.jam?.toLocaleString('id-ID') || 0} jam/bulan</div>
-                          <div className="text-[10px] text-neutral-500">{row.avgJamDay} jam/hari</div>
-                        </td>
+  <thead className="bg-neutral-900 text-white sticky top-0 z-10">
+    <tr>
+      <th className="px-4 py-3 font-medium align-top">BULAN</th>
+      <th className="px-4 py-3 text-center align-top bg-teal-900 border-x border-teal-800">DEBIT CATCHMENT AREA<br/><span className="text-[10px] text-blue-200 font-normal">LPS</span></th>
+      <th className="px-4 py-3 text-center align-top bg-blue-900 border-x border-blue-800">AIR BAKU<br/><span className="text-[10px] text-blue-200 font-normal">LPS</span></th>
+      
+      {/* KOLOM PRODUKSI & LPS DIGABUNG */}
+      <th className="px-4 py-3 text-right align-top"><div>PRODUKSI</div><div className="text-[10px] text-neutral-400 font-normal">Avg & LPS</div></th>
+      
+      {/* KOLOM JAM OPERASI */}
+      <th className="px-4 py-3 text-right align-top border-l border-r border-neutral-700"><div>JAM OPR</div><div className="text-[10px] text-neutral-400 font-normal">Avg</div></th>
+      
+      <th className="px-4 py-3 text-right text-amber-200 align-top border-r border-amber-800/30"><div>PAC</div><div className="text-[10px] text-amber-100/60 font-normal">Avg & Dosis</div></th>
+      <th className="px-4 py-3 text-right text-neutral-300 align-top"><div>KAP</div><div className="text-[10px] text-neutral-400 font-normal">Avg & Dosis</div></th>
+    </tr>
+  </thead>
+  <tbody className="divide-y divide-neutral-200">
+    {[...filteredData].reverse().map((row: any, idx: number) => (
+      <tr key={idx} className="hover:bg-neutral-50 transition-colors">
+        <td className="px-4 py-3 font-bold align-middle whitespace-nowrap">{row.fullDateLabel}</td>
+        <td className="px-4 py-3 text-center font-bold text-teal-700 bg-teal-50/20 align-middle">{row.airBaku > 0 ? row.airBaku.toLocaleString('id-ID') : '-'} LPS</td>
+        <td className="px-4 py-3 text-center font-bold text-blue-700 bg-blue-50/20 align-middle">{row.pipaTransmisi > 0 ? row.pipaTransmisi.toLocaleString('id-ID') : '-'} LPS</td>
+        
+        {/* DATA PRODUKSI & LPS DIGABUNG */}
+        <td className="px-4 py-2 text-right align-middle">
+          <div className="font-bold text-neutral-900">{row.m3.toLocaleString('id-ID')} m³</div>
+          <div className="text-[10px] text-neutral-500">{row.avgProdDay.toLocaleString('id-ID')} m³/hari</div>
+          <div className={`text-[10px] font-bold mt-0.5 ${row.lps > 80 ? 'text-red-600' : 'text-blue-600'}`}>{row.lps} LPS</div>
+        </td>
+        
+        {/* DATA JAM OPERASI */}
+        <td className="px-4 py-2 text-right align-middle border-l border-r border-neutral-100 bg-neutral-50/50">
+          <div className="font-bold text-neutral-900">{row.jam?.toLocaleString('id-ID') || 0} jam/bulan</div>
+          <div className="text-[10px] text-neutral-500">{row.avgJamDay} jam/hari</div>
+        </td>
 
-                        <td className="px-4 py-2 text-right bg-amber-50/30 align-middle">
-                          <div className="font-bold text-neutral-900">{row.pacKg.toLocaleString('id-ID')} kg</div>
-                          <div className="text-[10px] text-neutral-500">{row.avgPacDay} kg/hari</div>
-                          <div className="text-[10px] font-bold text-amber-700 mt-0.5">{row.dosePac} mg/l</div>
-                        </td>
-                        <td className="px-4 py-2 text-right align-middle">
-                          <div className="font-bold text-neutral-900">{row.kapKg}</div>
-                          <div className="text-[10px] text-neutral-500">{row.avgKapDay} kg/hari</div>
-                          <div className="text-[10px] font-bold text-neutral-600 mt-0.5">{row.doseKap} mg/l</div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  {tableTotals && (
-                    <tfoot className="bg-neutral-100 border-t-2 border-neutral-300 font-bold">
-                      <tr className="text-neutral-900">
-                        <td className="px-4 py-3">TOTAL</td>
-                        <td className="px-4 py-3 text-center">-</td>
-                        
-                        {/* TOTAL PRODUKSI */}
-                        <td className="px-4 py-3 text-right align-middle">{tableTotals.totalM3.toLocaleString('id-ID')} m³</td>
-                        
-                        {/* TOTAL JAM OPERASI */}
-                        <td className="px-4 py-3 text-right align-middle border-l border-r border-neutral-200">{tableTotals.totalJam?.toLocaleString('id-ID') || 0} jam</td>
+        <td className="px-4 py-2 text-right bg-amber-50/30 align-middle">
+          <div className="font-bold text-neutral-900">{row.pacKg.toLocaleString('id-ID')} kg</div>
+          <div className="text-[10px] text-neutral-500">{row.avgPacDay} kg/hari</div>
+          <div className="text-[10px] font-bold text-amber-700 mt-0.5">{row.dosePac} mg/l</div>
+        </td>
+        <td className="px-4 py-2 text-right align-middle">
+          <div className="font-bold text-neutral-900">{row.kapKg}</div>
+          <div className="text-[10px] text-neutral-500">{row.avgKapDay} kg/hari</div>
+          <div className="text-[10px] font-bold text-neutral-600 mt-0.5">{row.doseKap} mg/l</div>
+        </td>
+      </tr>
+    ))}
+  </tbody>
+  {tableTotals && (
+    <tfoot className="bg-neutral-100 border-t-2 border-neutral-300 font-bold">
+      {/* BARIS TOTAL */}
+      <tr className="text-neutral-900">
+        <td className="px-4 py-3">TOTAL</td>
+        <td className="px-4 py-3 text-center">-</td>
+        {/* Kolom Pipa Transmisi (Total) */}
+        <td className="px-4 py-3 text-center text-blue-800 bg-blue-50/30">{tableTotals.totalPipaTransmisi?.toLocaleString('id-ID') || 0}</td> 
+        
+        <td className="px-4 py-3 text-right align-middle">{tableTotals.totalM3.toLocaleString('id-ID')} m³</td>
+        <td className="px-4 py-3 text-right align-middle border-l border-r border-neutral-200">{tableTotals.totalJam?.toLocaleString('id-ID') || 0} jam</td>
+        <td className="px-4 py-3 text-right align-middle">{tableTotals.totalPac.toLocaleString('id-ID')} kg</td>
+        <td className="px-4 py-3 text-right align-middle">{tableTotals.totalKap.toLocaleString('id-ID')} kg</td>
+      </tr>
 
-                        <td className="px-4 py-3 text-right align-middle">{tableTotals.totalPac.toLocaleString('id-ID')} kg</td>
-                        <td className="px-4 py-3 text-right align-middle">{tableTotals.totalKap.toLocaleString('id-ID')} kg</td>
-                      </tr>
-                      <tr className="text-neutral-700 bg-neutral-50 border-t border-neutral-200">
-                        <td className="px-4 py-3 italic align-middle">RATA-RATA</td>
-                        <td className="px-4 py-3 text-center text-teal-700 align-middle">{tableTotals.avgAirBaku?.toFixed(2) || 0} LPS</td>
-                        
-                        {/* RATA-RATA PRODUKSI & LPS DIGABUNG */}
-                        <td className="px-4 py-3 text-right align-middle">
-                          <div>{tableTotals.avgM3?.toLocaleString('id-ID', {maximumFractionDigits: 0}) || 0} m³</div>
-                          <div className="text-[10px] font-bold text-blue-600 mt-0.5">{tableTotals.avgLps?.toFixed(2) || 0} LPS</div>
-                        </td>
-                        
-                        {/* RATA-RATA JAM OPERASI */}
-                        <td className="px-4 py-3 text-right align-middle border-l border-r border-neutral-200">
-                          <div>{tableTotals.avgJam?.toFixed(0) || 0} jam/bulan</div>
-                          <div className="text-[10px] text-neutral-600 mt-0.5">{tableTotals.avgJamDaily?.toFixed(1) || 0} jam/hari</div>
-                        </td>
+      {/* BARIS RATA-RATA */}
+      <tr className="text-neutral-700 bg-neutral-50 border-t border-neutral-200">
+        <td className="px-4 py-3 italic align-middle">RATA-RATA</td>
+        <td className="px-4 py-3 text-center text-teal-700 align-middle">{tableTotals.avgAirBaku?.toFixed(2) || 0} LPS</td>
+        {/* Kolom Pipa Transmisi (Rata-rata) */}
+        <td className="px-4 py-3 text-center text-blue-700 bg-blue-50/30 align-middle">{tableTotals.avgPipaTransmisi?.toFixed(2) || 0} LPS</td>
+        
+        <td className="px-4 py-3 text-right align-middle">
+          <div>{tableTotals.avgM3?.toLocaleString('id-ID', {maximumFractionDigits: 0}) || 0} m³</div>
+          <div className="text-[10px] font-bold text-blue-600 mt-0.5">{tableTotals.avgLps?.toFixed(2) || 0} LPS</div>
+        </td>
+        
+        <td className="px-4 py-3 text-right align-middle border-l border-r border-neutral-200">
+          <div>{tableTotals.avgJam?.toFixed(0) || 0} jam/bulan</div>
+          <div className="text-[10px] text-neutral-600 mt-0.5">{tableTotals.avgJamDaily?.toFixed(1) || 0} jam/hari</div>
+        </td>
 
-                        <td className="px-4 py-3 text-right align-middle">
-                          <div>{tableTotals.avgPacKg?.toLocaleString('id-ID', {maximumFractionDigits: 0}) || 0} Kg</div>
-                          <div className="text-[10px] text-amber-700 mt-0.5">{tableTotals.avgDosePac?.toFixed(2) || 0} mg/l</div>
-                        </td>
-                        <td className="px-4 py-3 text-right align-middle">
-                          <div>{tableTotals.avgKapKg?.toLocaleString('id-ID', {maximumFractionDigits: 0}) || 0} Kg</div>
-                          <div className="text-[10px] text-neutral-600 mt-0.5">{tableTotals.avgDoseKap?.toFixed(2) || 0} mg/l</div>
-                        </td>
-                      </tr>
-                    </tfoot>
-                  )}
-                </table>
+        <td className="px-4 py-3 text-right align-middle">
+          <div>{tableTotals.avgPacKg?.toLocaleString('id-ID', {maximumFractionDigits: 0}) || 0} Kg</div>
+          <div className="text-[10px] text-amber-700 mt-0.5">{tableTotals.avgDosePac?.toFixed(2) || 0} mg/l</div>
+        </td>
+        <td className="px-4 py-3 text-right align-middle">
+          <div>{tableTotals.avgKapKg?.toLocaleString('id-ID', {maximumFractionDigits: 0}) || 0} Kg</div>
+          <div className="text-[10px] text-neutral-600 mt-0.5">{tableTotals.avgDoseKap?.toFixed(2) || 0} mg/l</div>
+        </td>
+      </tr>
+    </tfoot>
+  )}
+</table>
               </div>
             </div>
           </>
