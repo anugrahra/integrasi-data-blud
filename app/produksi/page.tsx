@@ -203,21 +203,21 @@ const handleExportExcel = () => {
 
   // Mapping data baris demi baris
   filteredData.forEach(item => {
-    wsData.push([
-      item.fullDateLabel,
-      item.airBaku,
-      item.pipaTransmisi,
-      item.m3,
-      item.avgProdDay,
-      item.lps,
-      item.pacKg,
-      item.avgPacDay,
-      item.dosePac,
-      item.kapKg,
-      item.avgKapDay,
-      item.doseKap
-    ]);
-  });
+  wsData.push([
+    item.fullDateLabel,
+    item.airBaku > 0 ? `${item.airBaku} LPS` : 'Tidak ada pengukuran',
+    item.pipaTransmisi > 0 ? `${item.pipaTransmisi} LPS` : 'Tidak ada pengukuran',
+    item.m3,
+    item.avgProdDay,
+    item.lps,
+    item.pacKg,
+    item.avgPacDay,
+    item.dosePac,
+    item.kapKg,
+    item.avgKapDay,
+    item.doseKap
+  ]);
+});
 
   wsData.push(['']); // Spasi kosong sebelum total
 
@@ -301,14 +301,14 @@ const handleExportPDF = () => {
   
   const tableRows: any[] = [];
   dataUrut.forEach(row => {
-    tableRows.push([
-      row.fullDateLabel,
-      row.airBaku > 0 ? row.airBaku.toLocaleString('id-ID') : '-',
-      row.pipaTransmisi > 0 ? row.pipaTransmisi.toLocaleString('id-ID') : '-', // Data baru
-      row.m3.toLocaleString('id-ID'),
-      row.lps,
-      row.pacKg.toLocaleString('id-ID'),
-      row.kapKg.toLocaleString('id-ID')
+  tableRows.push([
+    row.fullDateLabel,
+    row.airBaku > 0 ? `${row.airBaku.toLocaleString('id-ID')} LPS` : 'Tidak ada pengukuran',
+    row.pipaTransmisi > 0 ? `${row.pipaTransmisi.toLocaleString('id-ID')} LPS` : 'Tidak ada pengukuran',
+    row.m3.toLocaleString('id-ID'),
+    row.lps,
+    row.pacKg.toLocaleString('id-ID'),
+    row.kapKg.toLocaleString('id-ID')
     ]);
   });
 
@@ -746,8 +746,12 @@ const handleExportPDF = () => {
     {[...filteredData].reverse().map((row: any, idx: number) => (
       <tr key={idx} className="hover:bg-neutral-50 transition-colors">
         <td className="px-4 py-3 font-bold align-middle whitespace-nowrap">{row.fullDateLabel}</td>
-        <td className="px-4 py-3 text-center font-bold text-teal-700 bg-teal-50/20 align-middle">{row.airBaku > 0 ? row.airBaku.toLocaleString('id-ID') : '-'} LPS</td>
-        <td className="px-4 py-3 text-center font-bold text-blue-700 bg-blue-50/20 align-middle">{row.pipaTransmisi > 0 ? row.pipaTransmisi.toLocaleString('id-ID') : '-'} LPS</td>
+        <td className="px-4 py-3 text-center font-bold text-teal-700 bg-teal-50/20 align-middle text-xs">
+          {row.airBaku > 0 ? `${row.airBaku.toLocaleString('id-ID')} LPS` : 'Tidak ada pengukuran'}
+        </td>
+        <td className="px-4 py-3 text-center font-bold text-blue-700 bg-blue-50/20 align-middle text-xs">
+          {row.pipaTransmisi > 0 ? `${row.pipaTransmisi.toLocaleString('id-ID')} LPS` : 'Tidak ada pengukuran'}
+        </td>
         
         {/* DATA PRODUKSI & LPS DIGABUNG */}
         <td className="px-4 py-2 text-right align-middle">
@@ -782,7 +786,9 @@ const handleExportPDF = () => {
         <td className="px-4 py-3">TOTAL</td>
         <td className="px-4 py-3 text-center">-</td>
         {/* Kolom Pipa Transmisi (Total) */}
-        <td className="px-4 py-3 text-center text-blue-800 bg-blue-50/30">{tableTotals.totalPipaTransmisi?.toLocaleString('id-ID') || 0}</td> 
+        <td className="px-4 py-3 text-center text-blue-800 bg-blue-50/30">
+          {tableTotals.totalPipaTransmisi > 0 ? tableTotals.totalPipaTransmisi.toLocaleString('id-ID') : 'Tidak ada pengukuran'}
+        </td> 
         
         <td className="px-4 py-3 text-right align-middle">{tableTotals.totalM3.toLocaleString('id-ID')} m³</td>
         <td className="px-4 py-3 text-right align-middle border-l border-r border-neutral-200">{tableTotals.totalJam?.toLocaleString('id-ID') || 0} jam</td>
@@ -793,9 +799,13 @@ const handleExportPDF = () => {
       {/* BARIS RATA-RATA */}
       <tr className="text-neutral-700 bg-neutral-50 border-t border-neutral-200">
         <td className="px-4 py-3 italic align-middle">RATA-RATA</td>
-        <td className="px-4 py-3 text-center text-teal-700 align-middle">{tableTotals.avgAirBaku?.toFixed(2) || 0} LPS</td>
+        <td className="px-4 py-3 text-center text-teal-700 align-middle">
+          {tableTotals.avgAirBaku > 0 ? `${tableTotals.avgAirBaku.toFixed(2)} LPS` : 'Tidak ada pengukuran'}
+        </td>
         {/* Kolom Pipa Transmisi (Rata-rata) */}
-        <td className="px-4 py-3 text-center text-blue-700 bg-blue-50/30 align-middle">{tableTotals.avgPipaTransmisi?.toFixed(2) || 0} LPS</td>
+        <td className="px-4 py-3 text-center text-blue-700 bg-blue-50/30 align-middle">
+          {tableTotals.avgPipaTransmisi > 0 ? `${tableTotals.avgPipaTransmisi.toFixed(2)} LPS` : 'Tidak ada pengukuran'}
+        </td>
         
         <td className="px-4 py-3 text-right align-middle">
           <div>{tableTotals.avgM3?.toLocaleString('id-ID', {maximumFractionDigits: 0}) || 0} m³</div>
