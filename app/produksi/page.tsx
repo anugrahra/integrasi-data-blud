@@ -135,6 +135,14 @@ export default function ProductionPage() {
     const sum = (key: string) => filteredData.reduce((acc, cur) => acc + (cur[key] || 0), 0);
     const avg = (key: string) => sum(key) / count;
 
+    // Tambahkan fungsi baru ini untuk menghitung rata-rata tanpa nilai 0
+    const avgNonZero = (key: string) => {
+      const validItems = filteredData.filter(item => (item[key] || 0) > 0);
+      if (validItems.length === 0) return 0;
+      const validSum = validItems.reduce((acc, cur) => acc + (cur[key] || 0), 0);
+      return validSum / validItems.length;
+    };
+
     return {
       totalM3: sum('m3'),
       avgM3: avg('m3'),
@@ -147,14 +155,14 @@ export default function ProductionPage() {
       totalKap: sum('kapKg'),
       avgKapKg: avg('kapKg'),
       avgDoseKap: avg('doseKap'),
-      avgAirBaku: avg('airBaku'),
+      avgAirBaku: avgNonZero('airBaku'),
       avgProdDaily: avg('avgProdDay'),
       avgJamDaily: avg('avgJamDay'),
       avgJam: avg('jam'),
       avgPacDaily: avg('avgPacDay'),
       avgKapDaily: avg('avgKapDay'),
       totalPipaTransmisi: sum('pipaTransmisi'),
-      avgPipaTransmisi: avg('pipaTransmisi')
+      avgPipaTransmisi: avgNonZero('pipaTransmisi')
     };
   }, [filteredData]);
 
@@ -408,7 +416,8 @@ const handleExportPDF = () => {
           },
           monthlyData: filteredData.map(item => ({
             bulan: item.bulanLabel,
-            airBakuLPS: item.airBaku,
+            airBakuLPS: item.airBaku > 0 ? item.airBaku : "Tidak ada pengukuran",
+            pipaTransmisiLPS: item.pipaTransmisi > 0 ? item.pipaTransmisi : "Tidak ada pengukuran",
             produksiM3: item.m3,
             lps: item.lps,
             pacKg: item.pacKg,

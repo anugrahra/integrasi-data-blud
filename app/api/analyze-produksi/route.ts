@@ -13,8 +13,8 @@ export async function POST(req: Request) {
 
     // Ubah data bulanan (JSON/Array) menjadi teks tabel yang mudah dibaca AI
     const monthlyDataText = monthlyData.map((d: any) => 
-      `- ${d.bulan}: Air Baku ${d.airBakuLPS} LPS | Produksi ${d.produksiM3} m3 (${d.lps} LPS) | PAC ${d.pacKg} Kg (Dosis: ${d.dosisPac} mg/l) | Kaporit ${d.kapKg} Kg (Dosis: ${d.dosisKap} mg/l)`
-    ).join('\n');
+  `- ${d.bulan}: Air Baku (Catchment) ${d.airBakuLPS} LPS | Pipa Transmisi ${d.pipaTransmisiLPS || 0} LPS | Produksi ${d.produksiM3} m3 (${d.lps} LPS) | PAC ${d.pacKg} Kg (Dosis: ${d.dosisPac} mg/l) | Kaporit ${d.kapKg} Kg (Dosis: ${d.dosisKap} mg/l)`
+).join('\n');
 
     // Prompt instruksi tingkat lanjut untuk AI
     const prompt = `
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
       [RINGKASAN TOTAL & RATA-RATA]
       - Total Produksi: ${stats.totalProd} m3 (Rata-rata: ${stats.avgProdDay} m3/hari)
       - Kapasitas Termanfaatkan: ${stats.avgLps} LPS
-      - Rata-rata Air Baku: ${stats.avgAirBaku} LPS
+      - Rata-rata Debit Catchment Area: ${stats.avgAirBaku} LPS
       - PAC: Total ${stats.totalPac} Kg (Rata-rata Dosis: ${stats.avgDosePac} mg/l)
       - Kaporit: Total ${stats.totalKap} Kg (Rata-rata Dosis: ${stats.avgDoseKap} mg/l)
 
@@ -38,11 +38,12 @@ export async function POST(req: Request) {
       Instruksi format balasan:
       1. Paragraf Pembuka: Berikan gambaran umum performa produksi, evaluasi apakah kapasitas terpakai aman terhadap kapasitas terpasang.
       2. Analisis Tren & Korelasi (Bullet points): 
-         - Temukan bulan dengan anomali (lonjakan/penurunan tajam pada produksi, air baku, atau bahan kimia).
+         - Temukan bulan dengan anomali (lonjakan/penurunan tajam pada produksi, air baku, atau bahan kimia). Perlu diperhatikan, bahwa jumlah hari dalam satu bulan pun menentukan jumlah produksi air minum di bulan tersebut.
          - Temukan korelasi logis (Misalnya: "Pada bulan X, penurunan debit air baku dibarengi dengan kenaikan dosis PAC yang mengindikasikan kekeruhan tinggi...").
       3. Kesimpulan/Saran: 1 kalimat penutup untuk fokus operasional ke depan.
       4. Gunakan bold (**teks**) untuk penekanan angka atau bulan penting.
       5. Jangan gunakan kata-kata salam. Langsung to the point.
+      6. PENTING: Jika nilai 'airBakuLPS' atau 'pipaTransmisiLPS' bernilai 0 atau berisi teks 'Tidak ada pengukuran', itu berarti data pada bulan  tersebut kosong (tidak ada pengukuran dilakukan), BUKAN berarti debit airnya kering/nol. Jangan masukkan bulan tersebut dalam analisis penurunan/kenaikan rata-rata.
     `;
 
     const result = await model.generateContent(prompt);
