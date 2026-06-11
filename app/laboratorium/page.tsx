@@ -577,33 +577,66 @@ const stats = useMemo(() => {
                   </div>
                   
                   <div className="relative z-10 flex flex-col items-center">
-                    <h3 className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-4">Water Quality Index</h3>
-                    
-                    {(() => {
-                        const score = stats.persentase === 100 ? 98 : stats.persentase;
-                        const grade = score >= 90 ? 'A' : score >= 80 ? 'B' : 'C';
-                        const colorCode = grade === 'A' ? 'text-blue-500' : grade === 'B' ? 'text-amber-500' : 'text-red-500';
-                        const borderCode = grade === 'A' ? 'border-blue-100' : grade === 'B' ? 'border-amber-100' : 'border-red-100';
-                        const desc = grade === 'A' ? 'Kualitas Prima (Excellent)' : grade === 'B' ? 'Kualitas Baik (Good)' : 'Perlu Perhatian (Fair)';
+    <h3 className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-4">Water Quality Index</h3>
+    
+    {(() => {
+        // Biarkan skor murni, tidak perlu di-fake menjadi 98
+        const score = stats.persentase;
+        
+        let grade, colorCode, borderCode, desc, Icon;
 
-                        return (
-                          <>
-                            <div className={`w-28 h-28 rounded-full border-8 ${borderCode} flex items-center justify-center mb-4 bg-white shadow-inner`}>
-                                <span className={`text-6xl font-black ${colorCode} drop-shadow-sm`}>{grade}</span>
-                            </div>
-                            
-                            <div className="flex items-center gap-2 mb-1">
-                                <Activity className={`w-4 h-4 ${colorCode}`} />
-                                <p className="text-2xl font-black text-neutral-800">Skor: {score}</p>
-                            </div>
-                            
-                            <p className="text-xs text-neutral-500 font-bold bg-neutral-50 px-3 py-1.5 rounded-full border border-neutral-200 mt-1">
-                                {desc}
-                            </p>
-                          </>
-                        )
-                    })()}
-                  </div>
+        // Sistem Tier / Ranking Baru yang lebih dinamis
+        if (score >= 98) {
+            grade = 'S';
+            colorCode = 'text-emerald-500';
+            // Tambahan shadow glow untuk Rank S
+            borderCode = 'border-emerald-200 shadow-[0_0_15px_rgba(16,185,129,0.4)]'; 
+            desc = 'Kualitas Superior (Perfect)';
+            Icon = Sparkles;
+        } else if (score >= 85) {
+            grade = 'A';
+            colorCode = 'text-blue-500';
+            borderCode = 'border-blue-100 shadow-inner';
+            desc = 'Kualitas Prima (Excellent)';
+            Icon = Activity;
+        } else if (score >= 70) {
+            grade = 'B';
+            colorCode = 'text-amber-500';
+            borderCode = 'border-amber-100 shadow-inner';
+            desc = 'Kualitas Baik (Good)';
+            Icon = Activity;
+        } else if (score >= 50) {
+            grade = 'C';
+            colorCode = 'text-orange-500';
+            borderCode = 'border-orange-100 shadow-inner';
+            desc = 'Perlu Perhatian (Fair)';
+            Icon = AlertTriangle;
+        } else {
+            grade = 'D';
+            colorCode = 'text-red-600';
+            borderCode = 'border-red-100 shadow-inner';
+            desc = 'Sangat Kritis (Poor)';
+            Icon = AlertTriangle;
+        }
+
+        return (
+            <>
+                <div className={`w-28 h-28 rounded-full border-8 ${borderCode} flex items-center justify-center mb-4 bg-white transition-all duration-300`}>
+                    <span className={`text-6xl font-black ${colorCode} drop-shadow-sm`}>{grade}</span>
+                </div>
+                
+                <div className="flex items-center gap-2 mb-1">
+                    <Icon className={`w-5 h-5 ${colorCode}`} />
+                    <p className="text-2xl font-black text-neutral-800">Skor: {score}</p>
+                </div>
+                
+                <p className="text-xs text-neutral-500 font-bold bg-neutral-50 px-3 py-1.5 rounded-full border border-neutral-200 mt-1 transition-colors">
+                    {desc}
+                </p>
+            </>
+        )
+    })()}
+</div>
               </div>
           </div>
 
@@ -1014,7 +1047,7 @@ const stats = useMemo(() => {
                       
                       <div className="bg-neutral-900 p-5 rounded-xl border border-neutral-800 text-white shadow-inner flex-1 flex flex-col justify-center">
                         <h3 className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-2 flex items-center gap-2">
-                           <ShieldCheck className="w-3.5 h-3.5" /> Laboratorium Penguji
+                           <ShieldCheck className="w-3.5 h-.5" /> Laboratorium Penguji
                         </h3>
                         <p className="text-sm font-bold leading-relaxed">{selectedRow.lab}</p>
                       </div>
