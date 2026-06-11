@@ -27,7 +27,7 @@ const PARAMETERS = [
   { id: 'warna', label: 'Warna', group: 'Fisika', max: 10, unit: 'TCU', color: '#38bdf8' },
   // Anorganik
   { id: 'ph', label: 'pH (Tingkat Asam)', group: 'Anorganik', min: 6.5, max: 8.5, unit: '', color: '#8b5cf6' },
-  { id: 'klorin', label: 'Sisa Klorin', group: 'Anorganik', min: 0.2, max: 1.0, unit: 'mg/l', color: '#a855f7' },
+  { id: 'klorin', label: 'Sisa Klorin', group: 'Anorganik', min: 0.2, max: 5.0, unit: 'mg/l', color: '#a855f7' },
   { id: 'fe', label: 'Besi (Fe)', group: 'Anorganik', max: 0.2, unit: 'mg/l', color: '#d946ef' },
   { id: 'mn', label: 'Mangan (Mn)', group: 'Anorganik', max: 0.1, unit: 'mg/l', color: '#c026d3' },
   { id: 'flourida', label: 'Flourida', group: 'Anorganik', max: 1.5, unit: 'mg/l', color: '#e879f9' },
@@ -79,7 +79,7 @@ export default function LaboratoriumPublicPage() {
         .order('tgl_uji', { ascending: false });
 
       if (error) {
-        console.error('Gagal narik data dari Supabase:', error);
+        console.error('Gagal narik data dari Supabase:', error.message || JSON.stringify(error));
       } else if (data && data.length > 0) {
         setLabData(data);
         // Otomatis set filter ke tahun dan bulan terbaru dari database
@@ -383,7 +383,7 @@ const stats = useMemo(() => {
   };
 
   const getStatusBadge = (status: string) => {
-    if (status === 'Memenuhi') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    if (status === 'Memenuhi Syarat') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
     if (status === 'Peringatan') return 'bg-amber-50 text-amber-700 border-amber-200';
     return 'bg-red-50 text-red-700 border-red-200';
   };
@@ -406,6 +406,23 @@ const stats = useMemo(() => {
       );
     }
     return <circle cx={cx} cy={cy} r={5} fill={currentParamConfig.color} stroke="white" strokeWidth={2} />;
+  };
+
+  // --- FUNGSI CEK BAKU MUTU DINAMIS ---
+  const isTidakMemenuhi = (paramId: string, val: any) => {
+    if (val === null || val === undefined || val === '' || val === '-') return false;
+    const num = Number(val);
+    if (isNaN(num)) return false;
+
+    // Cari konfigurasi parameter berdasarkan ID (merujuk pada array PARAMETERS di atas)
+    const config = PARAMETERS.find(p => p.id === paramId);
+    if (!config) return false;
+
+    // Evaluasi batas atas dan bawah
+    if (config.max !== undefined && num > config.max) return true;
+    if (config.min !== undefined && num < config.min) return true;
+    
+    return false;
   };
 
   return (
@@ -860,31 +877,35 @@ const stats = useMemo(() => {
                                       className="cursor-pointer transition-all duration-300 hover:bg-blue-50/40 hover:shadow-[inset_4px_0_0_0_#2563eb] group"
                                     >
                                       <td className="px-3 py-3 text-center border-r border-neutral-100">{index + 1}</td>
-                                      <td className="px-4 py-3 font-bold text-neutral-900 border-r border-neutral-100 whitespace-nowrap">{row.lokasi}</td>
-                                      <td className="px-2 py-3 text-center font-mono text-[10px] text-neutral-500 border-r border-neutral-100">{format(parseISO(row.tgl_uji), 'dd/MM/yy')}</td>
-                                      
-                                      <td className="px-3 py-3 text-center font-mono border-r border-neutral-100 bg-teal-50/10">{row.ph}</td>
-                                      <td className="px-3 py-3 text-center font-mono border-r border-neutral-100 bg-teal-50/10">{row.suhu}</td>
-                                      <td className="px-3 py-3 text-center font-mono border-r border-neutral-100 bg-teal-50/10">{row.klorin}</td>
-                                      <td className="px-3 py-3 text-center font-mono border-r border-neutral-100 bg-teal-50/10">{row.kekeruhan}</td>
+<td className="px-4 py-3 font-bold text-neutral-900 border-r border-neutral-100 whitespace-nowrap">{row.lokasi}</td>
+<td className="px-2 py-3 text-center font-mono text-[10px] text-neutral-500 border-r border-neutral-100">{format(parseISO(row.tgl_uji), 'dd/MM/yy')}</td>
 
-                                      <td className="px-3 py-3 text-center font-mono font-bold text-blue-700 border-r border-neutral-100">{row.tds}</td>
-                                      <td className="px-3 py-3 text-center font-mono border-r border-neutral-100">{row.warna}</td>
+{/* PENGUKURAN LAPANGAN */}
+<td className={`px-3 py-3 text-center font-mono border-r border-neutral-100 bg-teal-50/10 ${isTidakMemenuhi('ph', row.ph) ? 'text-red-600 font-bold' : ''}`}>{row.ph}</td>
+<td className={`px-3 py-3 text-center font-mono border-r border-neutral-100 bg-teal-50/10 ${isTidakMemenuhi('suhu', row.suhu) ? 'text-red-600 font-bold' : ''}`}>{row.suhu}</td>
+<td className={`px-3 py-3 text-center font-mono border-r border-neutral-100 bg-teal-50/10 ${isTidakMemenuhi('klorin', row.klorin) ? 'text-red-600 font-bold' : ''}`}>{row.klorin}</td>
+<td className={`px-3 py-3 text-center font-mono border-r border-neutral-100 bg-teal-50/10 ${isTidakMemenuhi('kekeruhan', row.kekeruhan) ? 'text-red-600 font-bold' : ''}`}>{row.kekeruhan}</td>
 
-                                      <td className="px-3 py-3 text-center font-mono border-r border-neutral-100">{row.fe}</td>
-                                      <td className="px-3 py-3 text-center font-mono border-r border-neutral-100">{row.mn}</td>
-                                      <td className="px-3 py-3 text-center font-mono border-r border-neutral-100">{row.flourida}</td>
-                                      <td className="px-3 py-3 text-center font-mono border-r border-neutral-100">{row.nitrat}</td>
-                                      <td className="px-3 py-3 text-center font-mono border-r border-neutral-100">{row.nitrit}</td>
+{/* FISIKA */}
+<td className={`px-3 py-3 text-center font-mono border-r border-neutral-100 ${isTidakMemenuhi('tds', row.tds) ? 'text-red-600 font-black' : 'text-blue-700 font-bold'}`}>{row.tds}</td>
+<td className={`px-3 py-3 text-center font-mono border-r border-neutral-100 ${isTidakMemenuhi('warna', row.warna) ? 'text-red-600 font-bold' : ''}`}>{row.warna}</td>
 
-                                      <td className={`px-3 py-3 text-center font-mono font-bold border-r border-neutral-100 ${row.coliform > 0 ? 'text-red-600 bg-red-50' : 'text-neutral-700'}`}>{row.coliform}</td>
-                                      <td className={`px-3 py-3 text-center font-mono font-bold border-r border-neutral-100 ${row.ecoli > 0 ? 'text-red-600 bg-red-50' : 'text-neutral-700'}`}>{row.ecoli}</td>
+{/* ANORGANIK */}
+<td className={`px-3 py-3 text-center font-mono border-r border-neutral-100 ${isTidakMemenuhi('fe', row.fe) ? 'text-red-600 font-bold' : ''}`}>{row.fe}</td>
+<td className={`px-3 py-3 text-center font-mono border-r border-neutral-100 ${isTidakMemenuhi('mn', row.mn) ? 'text-red-600 font-bold' : ''}`}>{row.mn}</td>
+<td className={`px-3 py-3 text-center font-mono border-r border-neutral-100 ${isTidakMemenuhi('flourida', row.flourida) ? 'text-red-600 font-bold' : ''}`}>{row.flourida}</td>
+<td className={`px-3 py-3 text-center font-mono border-r border-neutral-100 ${isTidakMemenuhi('nitrat', row.nitrat) ? 'text-red-600 font-bold' : ''}`}>{row.nitrat}</td>
+<td className={`px-3 py-3 text-center font-mono border-r border-neutral-100 ${isTidakMemenuhi('nitrit', row.nitrit) ? 'text-red-600 font-bold' : ''}`}>{row.nitrit}</td>
 
-                                      <td className="px-4 py-3 text-center bg-neutral-50/50">
-                                          <span className={`px-2.5 py-1 rounded border text-[10px] font-bold uppercase tracking-wider ${getStatusBadge(row.status)}`}>
-                                              {row.status}
-                                          </span>
-                                      </td>
+{/* MIKROBIOLOGI */}
+<td className={`px-3 py-3 text-center font-mono font-bold border-r border-neutral-100 ${isTidakMemenuhi('coliform', row.coliform) ? 'text-red-600 bg-red-50' : 'text-neutral-700'}`}>{row.coliform}</td>
+<td className={`px-3 py-3 text-center font-mono font-bold border-r border-neutral-100 ${isTidakMemenuhi('ecoli', row.ecoli) ? 'text-red-600 bg-red-50' : 'text-neutral-700'}`}>{row.ecoli}</td>
+
+<td className="px-4 py-3 text-center bg-neutral-50/50">
+    <span className={`px-2.5 py-1 rounded border text-[10px] font-bold uppercase tracking-wider ${getStatusBadge(row.status)}`}>
+        {row.status}
+    </span>
+</td>
                                   </tr>
                               ))
                           )}
@@ -944,34 +965,34 @@ const stats = useMemo(() => {
                 <div className="p-6 sm:p-8 overflow-y-auto custom-scrollbar bg-neutral-50/50">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     
-                    {/* Panel Fisika */}
-                    <div className="bg-white p-5 rounded-xl border border-neutral-200 shadow-sm">
-                      <h3 className="text-xs font-black text-blue-600 uppercase tracking-widest mb-5 flex items-center gap-2 border-b border-neutral-100 pb-3">
-                        <Droplets className="w-4 h-4" /> Parameter Fisika
-                      </h3>
-                      <div className="space-y-3.5">
-                        <div className="flex justify-between items-end border-b border-neutral-50 pb-1.5"><span className="text-xs text-neutral-500 font-bold">Suhu</span><span className="font-mono font-black text-sm text-neutral-800">{selectedRow.suhu} <span className="text-[10px] text-neutral-400 font-normal">°C</span></span></div>
-                        <div className="flex justify-between items-end border-b border-neutral-50 pb-1.5"><span className="text-xs text-neutral-500 font-bold">Kekeruhan</span><span className="font-mono font-black text-sm text-neutral-800">{selectedRow.kekeruhan} <span className="text-[10px] text-neutral-400 font-normal">NTU</span></span></div>
-                        <div className="flex justify-between items-end border-b border-neutral-50 pb-1.5"><span className="text-xs text-neutral-500 font-bold">TDS (Padatan)</span><span className="font-mono font-black text-sm text-neutral-800">{selectedRow.tds} <span className="text-[10px] text-neutral-400 font-normal">mg/l</span></span></div>
-                        <div className="flex justify-between items-end"><span className="text-xs text-neutral-500 font-bold">Warna</span><span className="font-mono font-black text-sm text-neutral-800">{selectedRow.warna} <span className="text-[10px] text-neutral-400 font-normal">TCU</span></span></div>
-                      </div>
-                    </div>
+  {/* Panel Fisika */}
+<div className="bg-white p-5 rounded-xl border border-neutral-200 shadow-sm">
+  <h3 className="text-xs font-black text-blue-600 uppercase tracking-widest mb-5 flex items-center gap-2 border-b border-neutral-100 pb-3">
+    <Droplets className="w-4 h-4" /> Parameter Fisika
+  </h3>
+  <div className="space-y-3.5">
+    <div className="flex justify-between items-end border-b border-neutral-50 pb-1.5"><span className="text-xs text-neutral-500 font-bold">Suhu</span><span className={`font-mono font-black text-sm ${isTidakMemenuhi('suhu', selectedRow.suhu) ? 'text-red-600' : 'text-neutral-800'}`}>{selectedRow.suhu} <span className="text-[10px] text-neutral-400 font-normal">°C</span></span></div>
+    <div className="flex justify-between items-end border-b border-neutral-50 pb-1.5"><span className="text-xs text-neutral-500 font-bold">Kekeruhan</span><span className={`font-mono font-black text-sm ${isTidakMemenuhi('kekeruhan', selectedRow.kekeruhan) ? 'text-red-600' : 'text-neutral-800'}`}>{selectedRow.kekeruhan} <span className="text-[10px] text-neutral-400 font-normal">NTU</span></span></div>
+    <div className="flex justify-between items-end border-b border-neutral-50 pb-1.5"><span className="text-xs text-neutral-500 font-bold">TDS (Padatan)</span><span className={`font-mono font-black text-sm ${isTidakMemenuhi('tds', selectedRow.tds) ? 'text-red-600' : 'text-neutral-800'}`}>{selectedRow.tds} <span className="text-[10px] text-neutral-400 font-normal">mg/l</span></span></div>
+    <div className="flex justify-between items-end"><span className="text-xs text-neutral-500 font-bold">Warna</span><span className={`font-mono font-black text-sm ${isTidakMemenuhi('warna', selectedRow.warna) ? 'text-red-600' : 'text-neutral-800'}`}>{selectedRow.warna} <span className="text-[10px] text-neutral-400 font-normal">TCU</span></span></div>
+  </div>
+</div>
 
-                    {/* Panel Anorganik */}
-                    <div className="bg-white p-5 rounded-xl border border-neutral-200 shadow-sm">
-                      <h3 className="text-xs font-black text-indigo-600 uppercase tracking-widest mb-5 flex items-center gap-2 border-b border-neutral-100 pb-3">
-                        <FlaskConical className="w-4 h-4" /> Kimia Anorganik
-                      </h3>
-                      <div className="space-y-3.5">
-                        <div className="flex justify-between items-end border-b border-neutral-50 pb-1.5"><span className="text-xs text-neutral-500 font-bold">pH Air</span><span className="font-mono font-black text-sm text-neutral-800">{selectedRow.ph}</span></div>
-                        <div className="flex justify-between items-end border-b border-neutral-50 pb-1.5"><span className="text-xs text-neutral-500 font-bold">Sisa Klorin</span><span className="font-mono font-black text-sm text-neutral-800">{selectedRow.klorin} <span className="text-[10px] text-neutral-400 font-normal">mg/l</span></span></div>
-                        <div className="flex justify-between items-end border-b border-neutral-50 pb-1.5"><span className="text-xs text-neutral-500 font-bold">Zat Besi (Fe)</span><span className="font-mono font-black text-sm text-neutral-800">{selectedRow.fe} <span className="text-[10px] text-neutral-400 font-normal">mg/l</span></span></div>
-                        <div className="flex justify-between items-end border-b border-neutral-50 pb-1.5"><span className="text-xs text-neutral-500 font-bold">Mangan (Mn)</span><span className="font-mono font-black text-sm text-neutral-800">{selectedRow.mn} <span className="text-[10px] text-neutral-400 font-normal">mg/l</span></span></div>
-                        <div className="flex justify-between items-end border-b border-neutral-50 pb-1.5"><span className="text-xs text-neutral-500 font-bold">Flourida</span><span className="font-mono font-black text-sm text-neutral-800">{selectedRow.flourida} <span className="text-[10px] text-neutral-400 font-normal">mg/l</span></span></div>
-                        <div className="flex justify-between items-end border-b border-neutral-50 pb-1.5"><span className="text-xs text-neutral-500 font-bold">Nitrat</span><span className="font-mono font-black text-sm text-neutral-800">{selectedRow.nitrat} <span className="text-[10px] text-neutral-400 font-normal">mg/l</span></span></div>
-                        <div className="flex justify-between items-end"><span className="text-xs text-neutral-500 font-bold">Nitrit</span><span className="font-mono font-black text-sm text-neutral-800">{selectedRow.nitrit} <span className="text-[10px] text-neutral-400 font-normal">mg/l</span></span></div>
-                      </div>
-                    </div>
+{/* Panel Anorganik */}
+<div className="bg-white p-5 rounded-xl border border-neutral-200 shadow-sm">
+  <h3 className="text-xs font-black text-indigo-600 uppercase tracking-widest mb-5 flex items-center gap-2 border-b border-neutral-100 pb-3">
+    <FlaskConical className="w-4 h-4" /> Kimia Anorganik
+  </h3>
+  <div className="space-y-3.5">
+    <div className="flex justify-between items-end border-b border-neutral-50 pb-1.5"><span className="text-xs text-neutral-500 font-bold">pH Air</span><span className={`font-mono font-black text-sm ${isTidakMemenuhi('ph', selectedRow.ph) ? 'text-red-600' : 'text-neutral-800'}`}>{selectedRow.ph}</span></div>
+    <div className="flex justify-between items-end border-b border-neutral-50 pb-1.5"><span className="text-xs text-neutral-500 font-bold">Sisa Klorin</span><span className={`font-mono font-black text-sm ${isTidakMemenuhi('klorin', selectedRow.klorin) ? 'text-red-600' : 'text-neutral-800'}`}>{selectedRow.klorin} <span className="text-[10px] text-neutral-400 font-normal">mg/l</span></span></div>
+    <div className="flex justify-between items-end border-b border-neutral-50 pb-1.5"><span className="text-xs text-neutral-500 font-bold">Zat Besi (Fe)</span><span className={`font-mono font-black text-sm ${isTidakMemenuhi('fe', selectedRow.fe) ? 'text-red-600' : 'text-neutral-800'}`}>{selectedRow.fe} <span className="text-[10px] text-neutral-400 font-normal">mg/l</span></span></div>
+    <div className="flex justify-between items-end border-b border-neutral-50 pb-1.5"><span className="text-xs text-neutral-500 font-bold">Mangan (Mn)</span><span className={`font-mono font-black text-sm ${isTidakMemenuhi('mn', selectedRow.mn) ? 'text-red-600' : 'text-neutral-800'}`}>{selectedRow.mn} <span className="text-[10px] text-neutral-400 font-normal">mg/l</span></span></div>
+    <div className="flex justify-between items-end border-b border-neutral-50 pb-1.5"><span className="text-xs text-neutral-500 font-bold">Flourida</span><span className={`font-mono font-black text-sm ${isTidakMemenuhi('flourida', selectedRow.flourida) ? 'text-red-600' : 'text-neutral-800'}`}>{selectedRow.flourida} <span className="text-[10px] text-neutral-400 font-normal">mg/l</span></span></div>
+    <div className="flex justify-between items-end border-b border-neutral-50 pb-1.5"><span className="text-xs text-neutral-500 font-bold">Nitrat</span><span className={`font-mono font-black text-sm ${isTidakMemenuhi('nitrat', selectedRow.nitrat) ? 'text-red-600' : 'text-neutral-800'}`}>{selectedRow.nitrat} <span className="text-[10px] text-neutral-400 font-normal">mg/l</span></span></div>
+    <div className="flex justify-between items-end"><span className="text-xs text-neutral-500 font-bold">Nitrit</span><span className={`font-mono font-black text-sm ${isTidakMemenuhi('nitrit', selectedRow.nitrit) ? 'text-red-600' : 'text-neutral-800'}`}>{selectedRow.nitrit} <span className="text-[10px] text-neutral-400 font-normal">mg/l</span></span></div>
+  </div>
+</div>
 
                     {/* Panel Mikrobiologi & Info Lab */}
                     <div className="flex flex-col gap-6">

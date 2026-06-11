@@ -72,7 +72,13 @@ export default function KaurLayout({ children }: { children: React.ReactNode }) 
           alert('AKSES DITOLAK: Area ini khusus untuk Kaur Perencanaan.');
           if (jabatan.includes('produksi')) router.replace('/kaur-produksi');
           else router.replace('/');
-        } else {
+        } 
+        else if (pathname.includes('/kaur-laboratorium') && !jabatan.includes('laboratorium')) {
+          alert('AKSES DITOLAK: Area ini khusus untuk Kaur Laboratorium.');
+          if (jabatan.includes('laboratorium')) router.replace('/kaur-laboratorium');
+          else router.replace('/');
+        } 
+        else {
           // Kaur masuk ke kandang yang benar
           setIsCheckingAccess(false);
         }
