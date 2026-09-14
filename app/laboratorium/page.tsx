@@ -1668,7 +1668,7 @@ export default function LaboratoriumPublicPage() {
 									{filteredData.length === 0 ? (
 										<tr>
 											<td
-												colSpan={18}
+												colSpan={17}
 												className="px-4 py-20 text-center text-neutral-400 bg-white"
 											>
 												<Search className="w-10 h-10 mx-auto mb-3 text-neutral-300" />
