@@ -65,6 +65,7 @@ export default function ProductionPage() {
 
 	// MODAL STATE
 	const [showAirBakuModal, setShowAirBakuModal] = useState(false);
+	const [selectedMonth, setSelectedMonth] = useState<any | null>(null);
 
 	// --- AI STATE ---
 	const [isAiLoading, setIsAiLoading] = useState(false);
@@ -161,12 +162,12 @@ export default function ProductionPage() {
 				lps: Number((m3 / days / 24 / 3.6).toFixed(2)),
 				avgProdDay: Number((m3 / days).toFixed(0)),
 				jam, // added
-				avgJamDay: Number((jam / days).toFixed(1)), // added logic
+				avgJamDay: Number((jam / days).toFixed(2)), // added logic
 				pacKg: pac,
-				avgPacDay: Number((pac / days).toFixed(1)),
+				avgPacDay: Number((pac / days).toFixed(2)),
 				dosePac: m3 > 0 ? Number(((pac * 1000) / m3).toFixed(2)) : 0,
 				kapKg: kaporit,
-				avgKapDay: Number((kaporit / days).toFixed(1)),
+				avgKapDay: Number((kaporit / days).toFixed(2)),
 				doseKap: m3 > 0 ? Number(((kaporit * 1000) / m3).toFixed(2)) : 0,
 				airBaku: Number(item.debit_air_baku) || 0,
 				pipaTransmisi: Number(item.debit_pipa_transmisi) || 0,
@@ -540,6 +541,10 @@ export default function ProductionPage() {
 		}
 	};
 	// ----------------------------------
+
+	const handleMonthClick = (row: any) => {
+		setSelectedMonth(row);
+	};
 
 	return (
 		<main className="min-h-screen bg-neutral-50 text-neutral-900 font-sans pb-20 relative">
@@ -997,7 +1002,7 @@ export default function ProductionPage() {
 										<Line
 											yAxisId="right"
 											type="monotone"
-											dataKey={() => 80}
+											dataKey="kapasitas_terpasang"
 											stroke="#ef4444"
 											strokeDasharray="5 5"
 											strokeWidth={1}
@@ -1223,7 +1228,8 @@ export default function ProductionPage() {
 											.map((row: any, idx: number) => (
 												<tr
 													key={idx}
-													className="hover:bg-neutral-50 transition-colors"
+													onClick={() => handleMonthClick(row)}
+													className="hover:bg-blue-50 transition-colors cursor-pointer group"
 												>
 													<td className="px-4 py-3 font-bold align-middle whitespace-nowrap">
 														{row.fullDateLabel}
@@ -1499,6 +1505,246 @@ export default function ProductionPage() {
 									</span>
 								</span>
 							</div>
+						</div>
+					</div>
+				</div>
+			)}
+
+			{/* --- DETAIL BULAN MODAL --- */}
+			{selectedMonth && (
+				<div
+					className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+					onClick={() => setSelectedMonth(null)}
+				>
+					<div
+						className="bg-white w-full max-w-4xl rounded-lg shadow-2xl border border-neutral-200 overflow-hidden"
+						onClick={(e) => e.stopPropagation()}
+					>
+						{/* HEADER */}
+						<div className="flex justify-between items-center p-6 border-b border-neutral-200 bg-neutral-50">
+							<div>
+								<p className="text-[10px] font-bold uppercase tracking-widest text-blue-600 mb-1">
+									Detail Log Data
+								</p>
+
+								<h3 className="text-2xl font-bold uppercase tracking-tight">
+									{selectedMonth.fullDateLabel}
+								</h3>
+
+								<p className="text-xs text-neutral-500 font-mono mt-1">
+									{currentSpam.name}
+								</p>
+							</div>
+
+							<button
+								onClick={() => setSelectedMonth(null)}
+								className="p-2 hover:bg-neutral-200 rounded-full transition-colors text-neutral-500 hover:text-red-600"
+							>
+								<X className="w-6 h-6" />
+							</button>
+						</div>
+
+						{/* CONTENT */}
+						<div className="p-6 space-y-6">
+							{/* PRODUKSI */}
+							<div>
+								<div className="flex items-center gap-2 mb-3">
+									<Droplets className="w-4 h-4 text-blue-600" />
+									<h4 className="text-xs font-bold uppercase tracking-wider">
+										Produksi Air
+									</h4>
+								</div>
+
+								<div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+									<div className="bg-neutral-50 border border-neutral-200 p-4">
+										<p className="text-[10px] text-neutral-500 uppercase">
+											Produksi
+										</p>
+										<p className="text-xl font-mono font-bold mt-1">
+											{selectedMonth.m3.toLocaleString("id-ID")}
+										</p>
+										<p className="text-[10px] text-neutral-500">m³ / bulan</p>
+									</div>
+
+									<div className="bg-neutral-50 border border-neutral-200 p-4">
+										<p className="text-[10px] text-neutral-500 uppercase">
+											Rata-rata Harian
+										</p>
+										<p className="text-xl font-mono font-bold mt-1">
+											{selectedMonth.avgProdDay.toLocaleString("id-ID")}
+										</p>
+										<p className="text-[10px] text-neutral-500">m³ / hari</p>
+									</div>
+
+									<div className="bg-blue-50 border border-blue-100 p-4">
+										<p className="text-[10px] text-blue-600 uppercase">
+											Kapasitas Aktual
+										</p>
+										<p className="text-xl font-mono font-bold text-blue-700 mt-1">
+											{selectedMonth.lps}
+										</p>
+										<p className="text-[10px] text-blue-600">LPS</p>
+									</div>
+
+									<div className="bg-neutral-50 border border-neutral-200 p-4">
+										<p className="text-[10px] text-neutral-500 uppercase">
+											Jam Operasi
+										</p>
+										<p className="text-xl font-mono font-bold mt-1">
+											{selectedMonth.jam.toLocaleString("id-ID")}
+										</p>
+										<p className="text-[10px] text-neutral-500">
+											{selectedMonth.avgJamDay} jam/hari
+										</p>
+									</div>
+								</div>
+							</div>
+
+							{/* AIR BAKU */}
+							<div>
+								<div className="flex items-center gap-2 mb-3">
+									<Waves className="w-4 h-4 text-teal-600" />
+									<h4 className="text-xs font-bold uppercase tracking-wider">
+										Air Baku
+									</h4>
+								</div>
+
+								<div className="grid grid-cols-2 gap-3">
+									<div className="bg-teal-50 border border-teal-100 p-4">
+										<p className="text-[10px] text-teal-600 uppercase">
+											Debit Catchment Area
+										</p>
+
+										<p className="text-xl font-mono font-bold text-teal-700 mt-1">
+											{selectedMonth.airBaku > 0
+												? `${selectedMonth.airBaku.toLocaleString("id-ID")} LPS`
+												: "Tidak ada pengukuran"}
+										</p>
+									</div>
+
+									<div className="bg-blue-50 border border-blue-100 p-4">
+										<p className="text-[10px] text-blue-600 uppercase">
+											Air Baku / Pipa Transmisi
+										</p>
+
+										<p className="text-xl font-mono font-bold text-blue-700 mt-1">
+											{selectedMonth.pipaTransmisi > 0
+												? `${selectedMonth.pipaTransmisi.toLocaleString("id-ID")} LPS`
+												: "Tidak ada pengukuran"}
+										</p>
+									</div>
+								</div>
+							</div>
+
+							{/* KIMIA */}
+							<div>
+								<div className="flex items-center gap-2 mb-3">
+									<FlaskConical className="w-4 h-4 text-amber-600" />
+									<h4 className="text-xs font-bold uppercase tracking-wider">
+										Pemakaian Bahan Kimia
+									</h4>
+								</div>
+
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+									{/* PAC */}
+									<div className="border border-amber-200 bg-amber-50/40 p-5">
+										<div className="flex justify-between items-center mb-4">
+											<h5 className="font-bold text-amber-800">PAC</h5>
+
+											<span className="text-[10px] font-mono bg-amber-100 text-amber-800 px-2 py-1 rounded">
+												KOAGULAN
+											</span>
+										</div>
+
+										<div className="grid grid-cols-2 gap-4">
+											<div>
+												<p className="text-[10px] text-neutral-500 uppercase">
+													Total
+												</p>
+												<p className="text-xl font-mono font-bold">
+													{selectedMonth.pacKg.toLocaleString("id-ID")} kg
+												</p>
+											</div>
+
+											<div>
+												<p className="text-[10px] text-neutral-500 uppercase">
+													Rata-rata / hari
+												</p>
+												<p className="text-xl font-mono font-bold">
+													{selectedMonth.avgPacDay} kg
+												</p>
+											</div>
+										</div>
+
+										<div className="mt-4 pt-3 border-t border-amber-200">
+											<p className="text-[10px] text-neutral-500 uppercase">
+												Dosis
+											</p>
+
+											<p className="text-lg font-mono font-bold text-amber-700">
+												{selectedMonth.dosePac} mg/L
+											</p>
+										</div>
+									</div>
+
+									{/* KAPORIT */}
+									<div className="border border-neutral-200 bg-neutral-50 p-5">
+										<div className="flex justify-between items-center mb-4">
+											<h5 className="font-bold text-neutral-800">KAPORIT</h5>
+
+											<span className="text-[10px] font-mono bg-neutral-200 text-neutral-700 px-2 py-1 rounded">
+												DESINFEKTAN
+											</span>
+										</div>
+
+										<div className="grid grid-cols-2 gap-4">
+											<div>
+												<p className="text-[10px] text-neutral-500 uppercase">
+													Total
+												</p>
+
+												<p className="text-xl font-mono font-bold">
+													{selectedMonth.kapKg.toLocaleString("id-ID")} kg
+												</p>
+											</div>
+
+											<div>
+												<p className="text-[10px] text-neutral-500 uppercase">
+													Rata-rata / hari
+												</p>
+
+												<p className="text-xl font-mono font-bold">
+													{selectedMonth.avgKapDay} kg
+												</p>
+											</div>
+										</div>
+
+										<div className="mt-4 pt-3 border-t border-neutral-200">
+											<p className="text-[10px] text-neutral-500 uppercase">
+												Dosis
+											</p>
+
+											<p className="text-lg font-mono font-bold text-neutral-700">
+												{selectedMonth.doseKap} mg/L
+											</p>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						{/* FOOTER */}
+						<div className="px-6 py-4 border-t border-neutral-200 bg-neutral-50 flex justify-between items-center">
+							<p className="text-[10px] text-neutral-400 font-mono">
+								DATA BULANAN • PUSAT DATA BLUD AM TERINTEGRASI
+							</p>
+
+							<button
+								onClick={() => setSelectedMonth(null)}
+								className="px-4 py-2 bg-neutral-900 text-white text-xs font-bold rounded hover:bg-neutral-700 transition-colors"
+							>
+								TUTUP
+							</button>
 						</div>
 					</div>
 				</div>
